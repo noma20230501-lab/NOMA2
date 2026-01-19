@@ -1,0 +1,7 @@
+=== 전용면적 결정 로직 디버깅 ===
+호수: 101
+is_collective_building: True
+unit_area: 44.43
+area_comparison.registry_area: 44.43
+[Case A] 전유부 면적 사용: 44.43㎡ (unit_area 우선)
+최종 registry_area: 44.43㎡

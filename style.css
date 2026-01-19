@@ -1,0 +1,215 @@
+/* ============================================
+   부동산 매물 광고 시스템 - 스타일 설정
+   각 섹션을 수정하면 해당 부분의 레이아웃이 변경됩니다.
+   ============================================ */
+
+/* ============================================
+   1. 전체 페이지 레이아웃
+   ============================================ */
+.block-container {
+    padding-top: 0.5rem;      /* 페이지 상단 여백 - 줄임 */
+    padding-bottom: 0.3rem;   /* 페이지 하단 여백 - 줄임 */
+    max-width: 100%;          /* 페이지 최대 너비 */
+}
+
+.main .block-container {
+    padding-top: 0.5rem;      /* 상단 여백 줄임 */
+    padding-bottom: 0.3rem;
+}
+
+/* 헤더 숨기기 */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* ============================================
+   2. 제목 크기 조정
+   ============================================ */
+h1 {
+    font-size: 1.2rem !important;      /* 큰 제목 크기 - 줄임 */
+    margin-bottom: 0.2rem !important;  /* 제목 아래 여백 - 줄임 */
+    margin-top: 0.2rem !important;     /* 제목 위 여백 - 추가 */
+}
+
+h3 {
+    font-size: 0.95rem !important;     /* 중간 제목 크기 - 줄임 */
+    margin-bottom: 0.1rem !important;  /* 아래 여백 - 줄임 */
+    margin-top: 0.2rem !important;     /* 위 여백 - 줄임 */
+}
+
+h4 {
+    font-size: 0.9rem !important;      /* 작은 제목 크기 */
+    margin-bottom: 0.1rem !important;  /* 아래 여백 최소화 */
+    margin-top: 0.1rem !important;     /* 위 여백 최소화 */
+}
+
+/* ============================================
+   3. 입력 텍스트 영역 (왼쪽)
+   ============================================ */
+.stTextArea textarea {
+    font-size: 0.82rem;  /* 텍스트 크기 - 줄임 */
+    height: 320px;       /* 입력란 높이 - 줄임 (더 많은 내용이 화면에 보임) */
+    line-height: 1.3;    /* 줄 간격 */
+}
+
+/* ============================================
+   4. 버튼 스타일
+   ============================================ */
+.stButton button {
+    padding: 0.2rem 0.4rem;    /* 버튼 안쪽 여백 (위아래 좌우) - 줄임 */
+    font-size: 0.85rem;        /* 버튼 글자 크기 - 줄임 */
+    margin-bottom: 0.2rem;     /* 버튼 아래 여백 - 줄임 */
+    margin-top: 0.1rem;        /* 버튼 위 여백 - 추가 */
+}
+
+/* 파란색 버튼 (생성하기 등) */
+.stButton button[kind="primary"] {
+    background-color: #1976d2;
+    border-color: #1976d2;
+    color: white;
+}
+
+.stButton button[kind="primary"]:hover {
+    background-color: #1565c0;
+    border-color: #1565c0;
+}
+
+/* 빨간색 버튼 (초기화 등) */
+.stButton button[kind="secondary"] {
+    background-color: #d32f2f;
+    border-color: #d32f2f;
+    color: white;
+}
+
+.stButton button[kind="secondary"]:hover {
+    background-color: #c62828;
+    border-color: #c62828;
+}
+
+/* ============================================
+   5. 경고 메시지 (노란색, 파란색 박스)
+   ============================================ */
+.stAlert {
+    padding: 0.3rem 0.5rem;   /* 경고 박스 안쪽 여백 - 줄임 */
+    margin-bottom: 0.3rem;    /* 경고 박스 아래 여백 - 줄임 */
+    margin-top: 0.2rem;       /* 경고 박스 위 여백 - 추가 */
+    font-size: 0.85rem;       /* 경고 글자 크기 - 줄임 */
+}
+
+/* ============================================
+   6. 마크다운 일반 여백
+   ============================================ */
+.stMarkdown {
+    margin-bottom: 0.3rem;    /* 아래 여백 줄임 */
+    margin-top: 0.1rem;       /* 위 여백 추가 */
+}
+
+/* ============================================
+   7. 확장 가능한 섹션 (디버그 정보 등)
+   ============================================ */
+.stExpander {
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================
+   8. 좌우 컬럼 간격
+   ============================================ */
+[data-testid="column"] {
+    padding: 0 0.3rem;  /* 좌우 여백 - 줄임 */
+}
+
+/* 입력/출력 섹션 제목 스타일 개선 */
+[data-testid="column"] h4 {
+    font-size: 0.85rem !important;     /* 입력/출력 제목 크기 */
+    margin-bottom: 0.2rem !important;  /* 아래 여백 */
+    margin-top: 0 !important;          /* 위 여백 제거 */
+    padding-top: 0 !important;
+}
+
+/* ============================================
+   9. 면적 선택 링크 버튼
+   ============================================ */
+.area-link {
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* 카톡면적 버튼 (파란색) */
+.area-link-kakao {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border: 2px solid #1976d2;
+}
+
+/* 대장면적 버튼 (빨간색) */
+.area-link-registry {
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 2px solid #d32f2f;
+}
+
+/* 면적 동일 표시 (노란색) */
+.area-same {
+    background-color: #fff9c4;
+    color: #f57f17;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: bold;
+    border: 2px solid #fbc02d;
+}
+
+/* ============================================
+   10. 전유부분 선택 UI (통임대/분할임대)
+   ============================================ */
+/* 전유부분 선택 버튼을 더 작게 만들기 */
+div[data-testid="stVerticalBlock"] > div:has(div[style*="통임대"]) .stButton button,
+div[data-testid="stVerticalBlock"] > div:has(div[style*="호수"]) .stButton button {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    height: 32px;
+}
+
+/* ============================================
+   11. 로그인 페이지 info 박스 숨기기
+   ============================================ */
+/* 로그인 페이지의 "기본 비밀번호" 안내 박스 숨기기 */
+#root > div:nth-child(1) > div.withScreencast > div > div > div > section > div.stMainBlockContainer.block-container.st-emotion-cache-zy6yx3.e4man114 > div > div.st-emotion-cache-18kf3ut.ek2vi384 > div > div.stColumn.st-emotion-cache-lzn8yf.ek2vi382 > div > div:nth-child(6) > div > div {
+    display: none !important;
+}
+
+/* 일반적인 경로 (CSS 클래스 변경 대응) */
+.stColumn > div > div:nth-child(6) > div > div.stAlert[data-baseweb="notification"] {
+    display: none !important;
+}
+
+/* form 다음에 나오는 첫 번째 info 박스 숨기기 (더 안전한 방법) */
+form[data-testid="stForm"] + div + div .stAlert[kind="info"] {
+    display: none !important;
+}
+
+/* ============================================
+   수정 팁:
+   
+   📏 높이를 조정하려면:
+   - .stTextArea textarea의 height 값 변경
+   - .stButton button의 padding 값 변경
+   
+   🔤 글자 크기를 조정하려면:
+   - font-size 값 변경 (0.85rem → 0.9rem 등)
+   
+   📐 여백을 조정하려면:
+   - padding: 위아래 여백
+   - margin: 요소 간 간격
+   
+   🎨 색상을 바꾸려면:
+   - background-color: 배경색
+   - color: 글자색
+   - border-color: 테두리색
+   ============================================ */

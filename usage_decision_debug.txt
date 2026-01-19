@@ -1,0 +1,16 @@
+=== 중개대상물 종류 결정 로직 디버깅 ===
+호수: 101
+is_collective_building: True
+unit_usage (전유부에서 추출): 소매점
+floor (검색할 층): 1
+
+[Case A] 집합건물 로직 실행
+층별개요에서 찾은 용도:
+  floor_usage_str: 소매점
+  floor_etc_usage_str: None
+  unit_usage: 소매점
+최종 usage_str_for_judgment: 소매점
+판정된 judged_usage: 제1종 근린생활시설
+→ final_usage = judged_usage: 제1종 근린생활시설
+
+최종 final_usage: 제1종 근린생활시설

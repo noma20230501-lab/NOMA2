@@ -1,0 +1,70 @@
+뱅크 접속 매물 자동 등록 프로그램
+
+https://www.neonet.co.kr/novo-rebank/view/member/MemberLogin.neo?login_check=yes&return_url=/novo-rebank/index.neo 로그인페이지
+
+#input_id 아이디
+
+#input_pw 비밀번호
+
+body > div.body_detail > div.subDetail > div.member_login > dl > dt > form > table:nth-child(4) > tbody > tr:nth-child(1) > td:nth-child(2) > input[type=image] 로그인버튼 클릭
+
+body > div.Neonet_header > div.nthTop > div.t_right > div > a:nth-child(1) 중개업소관리자 클릭
+
+#btn_offer_register > span > a 매물등록 버튼 클릭
+
+#offerings_sub_gbn 건물종류
+
+#usage_gbn 건축물용도 (여러개중에 선택해야함)
+
+#metro_cd 소재지 시/도 선택
+
+#gu_cd 시군구 선택
+
+#dong_cd 읍면동 선택
+
+#house_no1 주소 앞 번지수 예 777-25 중 777에 해당하는자리 입력
+
+#house_no2 주소 뒤 번지수 입력
+
+#detail_addr 상세주소 (지번외 상세주소(동,층,호, 일부,전체 등) 입력
+
+#offer_gbn_C 거래종류 월세 체크
+
+#deposit_prc 보증금 입력
+
+#monthly_prc 월세 입력
+
+#sup_area 계약면적 입력
+
+#exc_area 전용면적 입력
+
+#floor_no 해당층 입력
+
+#tot_floor 총층 입력
+
+#bath_cnt 화장실 수 입력
+
+#is_illegal_house 위반건축물 (해당됨, 해당없음) 선택 
+
+#build_year 사용승인일 년 선택
+
+#build_month 사용승인일 월 선택
+
+#build_day 사용승인일 일 선택
+
+#park_cnt 총 주차대수 입력
+
+#is_parking 주차가능여부 선택 (가능,불가능)
+
+#direction_cd 방향 선택 (동서남북 북서 북동...)
+
+#move_gbn_A 입주가능일 즉시 입주 동그라미 클릭
+
+#feature 매물 제목 입력
+
+#memo 상세설명 입력
+
+
+
+
+
