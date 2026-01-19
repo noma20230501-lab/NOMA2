@@ -2648,6 +2648,8 @@ class PropertyAdSystem:
                             'unitNo',
                             'unit']
                         area_ho = None
+                        ho_found_but_not_matched = False  # 호수를 찾았지만 불일치한 경우
+
                         for ho_field in ho_fields:
                             ho_value = area_info.get(ho_field, '')
                             if ho_value:
@@ -2662,8 +2664,14 @@ class PropertyAdSystem:
                                         f"✅ [_get_floor_area_from_api] 호수 매칭 성공: 입력={ho}, API={ho_value_str}")
                                     break
                                 else:
+                                    ho_found_but_not_matched = True
                                     print(
                                         f"⏭️ [_get_floor_area_from_api] 호수 불일치: 입력={ho_normalized}, API={ho_value_normalized}")
+
+                        # 호수를 찾았지만 불일치한 경우 → 다음 area_info 확인
+                        if ho_found_but_not_matched and not area_ho:
+                            print(f"   → 이 전유부분 건너뛰고 다음 항목 확인")
+                            continue  # 다음 area_info로 이동
 
                         # 호수가 매칭되면 해당 호수의 면적 사용
                         if area_ho:
@@ -2688,8 +2696,8 @@ class PropertyAdSystem:
                             if registry_area:
                                 break
 
-                    # 호수가 없거나 매칭되지 않으면 층 전체 면적 사용
-                    if not registry_area:
+                    # 호수 입력이 없을 때만 층 전체 면적 사용
+                    if not registry_area and not ho:
                         # 전용면적 필드 찾기 (여러 가능한 필드명 시도)
                         exclusive_area_fields = [
                             'exclArea', 'exclArea1', 'exclArea2', 'exclArea3',
@@ -2706,7 +2714,7 @@ class PropertyAdSystem:
                                     if area_val > 0:
                                         registry_area = area_val
                                         print(
-                                            f"✅ [_get_floor_area_from_api] 호수 없음 - 층 면적 사용: area={area_val}㎡, etcPurps={etc_purps}")
+                                            f"✅ [_get_floor_area_from_api] 호수 입력 없음 - 층 면적 사용: area={area_val}㎡, etcPurps={etc_purps}")
                                         break
                                 except BaseException:
                                     pass
@@ -4060,10 +4068,10 @@ class PropertyAdSystem:
                         debug_usage_decision.append(
                             f"→ final_usage = unit_usage_str (제1종/제2종 포함): {final_usage}")
                     else:
-                        # 상세 용도인 경우 확인요망으로 표시
-                        final_usage = "확인요망"
+                        # 상세 용도인 경우 실제 용도 + (확인요망)으로 표시
+                        final_usage = f"{unit_usage_str}(확인요망)"
                         debug_usage_decision.append(
-                            f"→ final_usage = 확인요망 (상세 용도로 판정 실패)")
+                            f"→ final_usage = {unit_usage_str}(확인요망) (상세 용도로 판정 실패)")
             else:
                 # usage_str_for_judgment가 없으면 확인요망
                 final_usage = "확인요망"
@@ -4352,10 +4360,10 @@ class PropertyAdSystem:
                                 debug_usage_decision.append(
                                     f"→ final_usage = usage_str_for_judgment (제1종/제2종 포함): {final_usage}")
                             else:
-                                # 상세 용도인 경우 확인요망으로 표시
-                                final_usage = "확인요망"
+                                # 상세 용도인 경우 실제 용도 + (확인요망)으로 표시
+                                final_usage = f"{usage_str_for_judgment}(확인요망)"
                                 debug_usage_decision.append(
-                                    f"→ final_usage = 확인요망 (상세 용도로 판정 실패): {usage_str_for_judgment}")
+                                    f"→ final_usage = {usage_str_for_judgment}(확인요망) (상세 용도로 판정 실패)")
                     elif usage_str_for_judgment:
                         # 면적 정보가 없으면 원본 사용 (하지만 "제2종 근린생활시설" 같은 법정 분류가 포함되어 있으면
                         # 그대로 사용)
@@ -4374,10 +4382,120 @@ class PropertyAdSystem:
                         debug_usage_decision.append(
                             f"→ final_usage = 확인요망 (용도 정보 없음)")
                 else:
-                    # 해당 층 용도 정보가 없으면 확인요망
-                    final_usage = "확인요망"
+                    # 해당 층 용도 정보가 없으면 area_result (전유공용면적 API)에서 확인
                     debug_usage_decision.append(
-                        f"→ final_usage = 확인요망 (해당 층 용도 정보 없음)")
+                        f"[층별개요에서 용도 못 찾음] area_result에서 용도 확인 시도...")
+
+                    usage_from_area_result = None
+                    try:
+                        if area_result and area_result.get(
+                                'success') and area_result.get('data'):
+                            ho_normalized = str(ho).replace(
+                                '호', '').strip() if ho else None
+                            for area_info in area_result['data']:
+                                # 층 매칭
+                                floor_num_str = str(
+                                    area_info.get(
+                                        'flrNoNm', '') or area_info.get(
+                                        'flrNo', '')).strip()
+                                is_floor_match = False
+
+                                # 층 정보가 있을 때만 매칭
+                                if floor is not None:
+                                    # 지하층 처리
+                                    if floor < 0:
+                                        if f"지{
+                                                abs(floor)}" in floor_num_str or f"B{
+                                                abs(floor)}" in floor_num_str:
+                                            is_floor_match = True
+                                    elif str(floor) in floor_num_str or f"{floor}층" in floor_num_str:
+                                        is_floor_match = True
+                                else:
+                                    # 층 정보가 없으면 모든 층 허용
+                                    is_floor_match = True
+
+                                if is_floor_match:
+                                    # 호수 매칭 (호수가 있으면)
+                                    if ho_normalized:
+                                        area_ho_nm = str(
+                                            area_info.get(
+                                                'hoNm', '')).replace(
+                                            '호', '').strip()
+                                        if area_ho_nm != ho_normalized:
+                                            continue  # 호수 불일치
+
+                                    # 용도 추출
+                                    etc_purps = area_info.get('etcPurps', '')
+                                    main_purps = area_info.get(
+                                        'mainPurpsCdNm', '')
+
+                                    if etc_purps:
+                                        usage_from_area_result = etc_purps
+                                        debug_usage_decision.append(
+                                            f"  ✅ area_result에서 etcPurps 발견: {etc_purps}")
+                                        break
+                                    elif main_purps:
+                                        usage_from_area_result = main_purps
+                                        debug_usage_decision.append(
+                                            f"  ✅ area_result에서 mainPurpsCdNm 발견: {main_purps}")
+                                        break
+
+                        if usage_from_area_result:
+                            # 면적 정보 확인
+                            area_for_judgment = None
+                            if area_comparison and area_comparison.get(
+                                    'registry_area'):
+                                area_for_judgment = area_comparison['registry_area']
+                            elif usage_judgment and usage_judgment.get('area_m2'):
+                                area_for_judgment = usage_judgment['area_m2']
+                            elif registry_area:
+                                area_for_judgment = registry_area
+
+                            # 용도 판정 시도
+                            if area_for_judgment:
+                                usage_lower = usage_from_area_result.lower()
+
+                                # 음식점 계열 판정
+                                if '대중음식점' in usage_lower or '일반음식점' in usage_lower:
+                                    if area_for_judgment < 300:
+                                        final_usage = '제1종 근린생활시설'
+                                    else:
+                                        final_usage = '제2종 근린생활시설'
+                                    debug_usage_decision.append(
+                                        f"  → 음식점 판정: {final_usage} (면적: {area_for_judgment}㎡)")
+                                elif '휴게음식점' in usage_lower:
+                                    if area_for_judgment < 300:
+                                        final_usage = '제1종 근린생활시설'
+                                    else:
+                                        final_usage = '제2종 근린생활시설'
+                                    debug_usage_decision.append(
+                                        f"  → 휴게음식점 판정: {final_usage} (면적: {area_for_judgment}㎡)")
+                                elif '제1종' in usage_from_area_result or '제2종' in usage_from_area_result:
+                                    final_usage = usage_from_area_result
+                                    debug_usage_decision.append(
+                                        f"  → 제1종/제2종 포함: {final_usage}")
+                                else:
+                                    # 판정 실패: 실제 용도 + (확인요망)
+                                    final_usage = f"{usage_from_area_result}(확인요망)"
+                                    debug_usage_decision.append(
+                                        f"  → 판정 실패: {final_usage}")
+                            else:
+                                # 면적 없음: 실제 용도 + (확인요망)
+                                final_usage = f"{usage_from_area_result}(확인요망)"
+                                debug_usage_decision.append(
+                                    f"  → 면적 정보 없음: {final_usage}")
+                        else:
+                            # area_result에서도 못 찾음
+                            final_usage = "확인요망"
+                            debug_usage_decision.append(
+                                f"→ final_usage = 확인요망 (area_result에서도 용도 못 찾음)")
+                    except Exception as e:
+                        # area_result 처리 중 에러 발생 시 확인요망으로 처리
+                        final_usage = "확인요망"
+                        debug_usage_decision.append(
+                            f"⚠️ area_result 처리 중 에러 발생: {str(e)}")
+                        debug_usage_decision.append(
+                            f"→ final_usage = 확인요망 (에러 발생)")
 
         if not final_usage:
             final_usage = "확인요망"

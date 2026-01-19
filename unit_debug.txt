@@ -1,8 +1,9 @@
-=== 전유부 조회 디버깅 (호수: 101) ===
+=== 전유부 조회 디버깅 (호수: 3) ===
 전유부 데이터 개수: 1
 
 [전유부 항목 1]
 모든 필드: ['rnum', 'platPlc', 'sigunguCd', 'bjdongCd', 'platGbCd', 'bun', 'ji', 'mgmBldrgstPk', 'regstrGbCd', 'regstrGbCdNm', 'regstrKindCd', 'regstrKindCdNm', 'newPlatPlc', 'bldNm', 'splotNm', 'block', 'lot', 'bylotCnt', 'naRoadCd', 'naBjdongCd', 'naUgrndCd', 'naMainBun', 'naSubBun', 'dongNm', 'mainAtchGbCd', 'mainAtchGbCdNm', 'platArea', 'archArea', 'bcRat', 'totArea', 'vlRatEstmTotArea', 'vlRat', 'strctCd', 'strctCdNm', 'etcStrct', 'mainPurpsCd', 'mainPurpsCdNm', 'etcPurps', 'roofCd', 'roofCdNm', 'etcRoof', 'hhldCnt', 'fmlyCnt', 'heit', 'grndFlrCnt', 'ugrndFlrCnt', 'rideUseElvtCnt', 'emgenUseElvtCnt', 'atchBldCnt', 'atchBldArea', 'totDongTotArea', 'indrMechUtcnt', 'indrMechArea', 'oudrMechUtcnt', 'oudrMechArea', 'indrAutoUtcnt', 'indrAutoArea', 'oudrAutoUtcnt', 'oudrAutoArea', 'pmsDay', 'stcnsDay', 'useAprDay', 'pmsnoYear', 'pmsnoKikCd', 'pmsnoKikCdNm', 'pmsnoGbCd', 'pmsnoGbCdNm', 'hoCnt', 'engrGrade', 'engrRat', 'engrEpi', 'gnBldGrade', 'gnBldCert', 'itgBldGrade', 'itgBldCert', 'crtnDay', 'rserthqkDsgnApplyYn', 'rserthqkAblty']
-  dongNm: '해피빌'
+  dongNm: ''
+  ✓ 호수 매칭 성공! (필드: dongNm, 값: )
 
 면적을 찾지 못했습니다.

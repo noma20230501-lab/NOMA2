@@ -189,9 +189,10 @@ class KakaoPropertyParser:
                 result['rights'] = self._parse_rights(line)
 
             # 용도 및 면적
-            # 면적이 있는 줄 (m2, ㎡, 평 등이 있으면 면적 정보로 간주)
+            # 면적이 있는 줄 (m2, ㎡, 평 등이 있거나 계약/전용/실면적 키워드가 있으면 면적 정보로 간주)
             # 용도와 면적을 함께 입력하므로, 면적이 있는 줄에서만 용도를 추출
-            has_area = 'm2' in line.lower() or '㎡' in line or '평' in line
+            has_area = 'm2' in line.lower(
+            ) or '㎡' in line or '평' in line or '계약' in line or '전용' in line or '실면적' in line
             if has_area or '근생' in line or '근린' in line:
                 # 번호 리스트에서 용도 키워드 추출 (원본 텍스트에서)
                 if not result['input_usage_from_numbered_list']:
@@ -568,23 +569,49 @@ class KakaoPropertyParser:
                 actual_area_m2 = float(actual_exclusive_match.group(1))
                 area_m2 = float(actual_exclusive_match.group(2))
             else:
-                # 2-0. "계약 XXXm2 (평수) 전용XXXm2" 형식 (괄호와 평수 포함 지원, 콤마 무시)
-                # ✅ 중간에 (39평) 같은 괄호가 있어도 매칭되도록 수정
-                contract_exclusive_simple_pattern = r'(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2\s*(?:\([^)]*\))?\s*[,]?\s*(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2'
-                contract_exclusive_simple_match = re.search(
-                    contract_exclusive_simple_pattern, text, re.IGNORECASE)
-                if not contract_exclusive_simple_match:
-                    contract_exclusive_simple_pattern = r'(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡\s*(?:\([^)]*\))?\s*[,]?\s*(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡'
-                    contract_exclusive_simple_match = re.search(
-                        contract_exclusive_simple_pattern, text)
+                # 2-0-1. "계약XX 전용XX" 형식 (m2 없이, 괄호와 평수 포함 지원)
+                # ✅ "계약40 전용30(20평)" 같은 형식 지원
+                contract_exclusive_no_unit_pattern = r'(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*(?:\([^)]*\))?\s*[,]?\s*(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*(?:\([^)]*\))?'
+                contract_exclusive_no_unit_match = re.search(
+                    contract_exclusive_no_unit_pattern, text, re.IGNORECASE)
 
-                if contract_exclusive_simple_match:
-                    # 첫 번째가 계약면적, 두 번째가 전용면적
-                    actual_area_m2 = float(
-                        contract_exclusive_simple_match.group(2))
-                    area_m2 = float(contract_exclusive_simple_match.group(4))
-                    print(
-                        f"🔍 [파싱] 슬래시 없는 패턴 매칭 (괄호 지원): 계약={actual_area_m2}, 전용={area_m2}")
+                # m2가 포함되어 있지 않은지 확인 (m2 있으면 다음 패턴에서 처리)
+                if contract_exclusive_no_unit_match:
+                    match_text = text[contract_exclusive_no_unit_match.start(
+                    ):contract_exclusive_no_unit_match.end()]
+                    if 'm2' not in match_text.lower() and '㎡' not in match_text:
+                        # 첫 번째가 계약면적, 두 번째가 전용면적
+                        actual_area_m2 = float(
+                            contract_exclusive_no_unit_match.group(2))
+                        area_m2 = float(
+                            contract_exclusive_no_unit_match.group(4))
+                        print(
+                            f"🔍 [파싱] m2 없는 패턴 매칭: 계약={actual_area_m2}, 전용={area_m2}")
+                        contract_exclusive_simple_match = True  # 다음 패턴 건너뛰기
+                    else:
+                        contract_exclusive_simple_match = None
+                else:
+                    contract_exclusive_simple_match = None
+
+                # 2-0-2. "계약 XXXm2 (평수) 전용XXXm2" 형식 (괄호와 평수 포함 지원, 콤마 무시)
+                # ✅ 중간에 (39평) 같은 괄호가 있어도 매칭되도록 수정
+                if not contract_exclusive_simple_match:
+                    contract_exclusive_simple_pattern = r'(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2\s*(?:\([^)]*\))?\s*[,]?\s*(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2'
+                    contract_exclusive_simple_match = re.search(
+                        contract_exclusive_simple_pattern, text, re.IGNORECASE)
+                    if not contract_exclusive_simple_match:
+                        contract_exclusive_simple_pattern = r'(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡\s*(?:\([^)]*\))?\s*[,]?\s*(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡'
+                        contract_exclusive_simple_match = re.search(
+                            contract_exclusive_simple_pattern, text)
+
+                    if contract_exclusive_simple_match:
+                        # 첫 번째가 계약면적, 두 번째가 전용면적
+                        actual_area_m2 = float(
+                            contract_exclusive_simple_match.group(2))
+                        area_m2 = float(
+                            contract_exclusive_simple_match.group(4))
+                        print(
+                            f"🔍 [파싱] 슬래시 없는 패턴 매칭 (괄호 지원): 계약={actual_area_m2}, 전용={area_m2}")
                 else:
                     # 2-1. "전용 XXXm2 계약XXXm2" 형식 (순서 반대, 콤마 무시)
                     exclusive_contract_simple_pattern = r'(전용|전용면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2\s+[,]?\s*(계약|계약면적)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2'
@@ -648,32 +675,59 @@ class KakaoPropertyParser:
                         area_m2 = float(supply_exclusive_match.group(2))
                         actual_area_m2 = float(supply_exclusive_match.group(1))
                     else:
-                        # 4. "실면적 XXXm2" 또는 "계약면적 XXXm2" 또는 "계약 XXXm2" 형식 검색
+                        # 4-1. "실면적 XXX" 또는 "계약면적 XXX" 또는 "계약 XXX" 형식 검색 (m2 없이)
+                        # 단, 뒤에 m2나 ㎡이 안 나오는 경우만
+                        if not actual_area_m2:
+                            actual_no_unit_match = re.search(
+                                r'(실면적|계약면적|계약|실)\s*약?\s*(\d+\.?\d*)(?!\s*[m㎡])', text, re.IGNORECASE)
+                            if actual_no_unit_match:
+                                # 뒤에 "전용"이 나오는지 확인 (계약40 전용30 형식인 경우)
+                                after_text = text[actual_no_unit_match.end(
+                                ):actual_no_unit_match.end() + 20]
+                                if '전용' in after_text:
+                                    actual_area_m2 = float(
+                                        actual_no_unit_match.group(2))
+                                    print(
+                                        f"🔍 [파싱] 계약면적 m2 없이 인식: {actual_area_m2}㎡")
+
+                        # 4-2. "실면적 XXXm2" 또는 "계약면적 XXXm2" 또는 "계약 XXXm2" 형식 검색
                         # ("약" 포함, 콤마 무시)
-                        actual_match = re.search(
-                            r'(실면적|계약면적|계약|실)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
-                        if not actual_match:
+                        if not actual_area_m2:
                             actual_match = re.search(
-                                r'(실면적|계약면적|계약|실)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
+                                r'(실면적|계약면적|계약|실)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
+                            if not actual_match:
+                                actual_match = re.search(
+                                    r'(실면적|계약면적|계약|실)\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
 
-                        if actual_match:
-                            actual_area_m2 = float(actual_match.group(2))
+                            if actual_match:
+                                actual_area_m2 = float(actual_match.group(2))
 
-                        # 5. "전용 XXXm2" 또는 "전용면적 XXXm2" 형식 검색 ("약" 포함, 콤마 무시)
-                        exclusive_match = re.search(
-                            r'전용면적\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
-                        if not exclusive_match:
-                            exclusive_match = re.search(
-                                r'전용면적\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
-                        if not exclusive_match:
-                            exclusive_match = re.search(
-                                r'전용\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
-                        if not exclusive_match:
-                            exclusive_match = re.search(
-                                r'전용\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
+                        # 5-1. "전용 XXX" 형식 검색 (m2 없이)
+                        # 단, 뒤에 m2나 ㎡이 안 나오고, 괄호 안의 평수가 있는 경우만
+                        if not area_m2:
+                            exclusive_no_unit_match = re.search(
+                                r'전용\s*약?\s*(\d+\.?\d*)(?!\s*[m㎡])\s*\(', text, re.IGNORECASE)
+                            if exclusive_no_unit_match:
+                                area_m2 = float(
+                                    exclusive_no_unit_match.group(1))
+                                print(f"🔍 [파싱] 전용면적 m2 없이 인식: {area_m2}㎡")
 
-                        if exclusive_match:
-                            area_m2 = float(exclusive_match.group(1))
+                        # 5-2. "전용 XXXm2" 또는 "전용면적 XXXm2" 형식 검색 ("약" 포함, 콤마 무시)
+                        if not area_m2:
+                            exclusive_match = re.search(
+                                r'전용면적\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
+                            if not exclusive_match:
+                                exclusive_match = re.search(
+                                    r'전용면적\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
+                            if not exclusive_match:
+                                exclusive_match = re.search(
+                                    r'전용\s*약?\s*(\d+\.?\d*)\s*[,]?\s*m2', text, re.IGNORECASE)
+                            if not exclusive_match:
+                                exclusive_match = re.search(
+                                    r'전용\s*약?\s*(\d+\.?\d*)\s*[,]?\s*㎡', text)
+
+                            if exclusive_match:
+                                area_m2 = float(exclusive_match.group(1))
                         else:
                             # 5-1. "전용면적 약 XXXm2" 형식 (전용면적과 약 사이에 공백이 있는 경우)
                             exclusive_approx_match = re.search(

@@ -769,10 +769,18 @@ def generate_blog_ad_web(kakao_text):
                             input_ho).replace('호', '').strip()
                         matched_units = []
 
+                        print(f"\n[호수 매칭 디버그]")
+                        print(
+                            f"입력된 호수: '{input_ho}' (정규화: '{input_ho_normalized}')")
+                        print(f"전유부분 목록:")
+
                         for idx, unit in enumerate(all_units):
                             unit_ho = unit.get('ho', '')
                             unit_ho_normalized = str(
                                 unit_ho).replace('호', '').strip()
+
+                            print(
+                                f"  [{idx}] 대장 호수: '{unit_ho}' (정규화: '{unit_ho_normalized}')")
 
                             # 호수 매칭 (정규화된 값으로 비교)
                             if (input_ho == unit_ho or
@@ -780,14 +788,19 @@ def generate_blog_ad_web(kakao_text):
                                     unit_ho_normalized.lower() == input_ho_normalized.lower()):
                                 matched_units.append(idx)
                                 print(
-                                    f"   ✅ 호수 자동 매칭: 입력={input_ho} → 대장={unit_ho}")
+                                    f"   ✅ 호수 매칭 성공! 입력={input_ho} → 대장={unit_ho} (idx={idx})")
 
                         # 정확히 1개 매치되면 자동 선택
                         if len(matched_units) == 1:
                             auto_matched_idx = matched_units[0]
                             print(
-                                f"   🎯 호수 자동 선택! idx={auto_matched_idx}, 호수={
+                                f"\n🎯 호수 자동 선택! idx={auto_matched_idx}, 호수={
                                     all_units[auto_matched_idx].get('ho')}")
+                        elif len(matched_units) > 1:
+                            print(
+                                f"\n⚠️ 여러 호수가 매칭됨: {matched_units} - 수동 선택 필요")
+                        else:
+                            print(f"\n❌ 매칭되는 호수 없음 - 수동 선택 필요")
 
                     # 자동 매칭된 호수가 있으면 바로 선택
                     if auto_matched_idx is not None:
@@ -829,9 +842,17 @@ def generate_blog_ad_web(kakao_text):
                             "usage": main_usage,
                             "units": all_units,
                         }
+                        print(
+                            f"\n[통임대 선택] 전체 {
+                                len(all_units)}개 호수, 총 면적: {total_area}㎡")
                     else:
                         # 분할임대: 특정 호수
                         selected_unit = all_units[selected_unit_idx]
+                        print(f"\n[분할임대 선택]")
+                        print(f"  selected_unit_idx: {selected_unit_idx}")
+                        print(f"  선택된 호수: {selected_unit.get('ho')}")
+                        print(f"  면적: {selected_unit['area']}㎡")
+                        print(f"  용도: {selected_unit.get('main_usage')}")
                         selected_units_info = {
                             "type": "single",
                             "area": selected_unit["area"],
@@ -1263,7 +1284,8 @@ def main():
             if st.session_state.get('parsed_bank_result'):
                 if st.button("📋 파싱 결과 복사", use_container_width=True):
                     # pyperclip을 사용하여 클립보드에 복사
-                    copy_text_b = st.session_state.get('parsed_bank_result', '')
+                    copy_text_b = st.session_state.get(
+                        'parsed_bank_result', '')
                     try:
                         import pyperclip
                         pyperclip.copy(copy_text_b)
@@ -2168,7 +2190,7 @@ def main():
                 # 입력 텍스트를 session_state에 저장 (건축물 선택 시 사용)
                 st.session_state.current_kakao_text = kakao_text
 
-                # 생성 버튼을 누르면 이전 선택 상태 초기화
+                # 생성 버튼을 누르면 이전 선택 상태 및 결과 데이터 초기화
                 keys_to_reset = [
                     "selected_building_idx",
                     "need_building_selection",
@@ -2181,6 +2203,13 @@ def main():
                     "need_usage_selection",  # 용도 선택 필요 플래그 초기화
                     "usage_options",  # 용도 옵션 초기화
                     "selected_usage",  # 선택된 용도 초기화
+                    "result_text",  # 이전 결과 텍스트 초기화
+                    "usage_judgment",  # 이전 용도 판정 초기화
+                    "parsed_info",  # 이전 파싱 정보 초기화
+                    "area_options",  # 이전 면적 옵션 초기화
+                    "area_comparison",  # 이전 면적 비교 정보 초기화
+                    "floor_result",  # 이전 층별개요 초기화
+                    "area_result",  # 이전 전유공용면적 초기화
                 ]
                 for key in keys_to_reset:
                     if key in st.session_state:
@@ -2406,7 +2435,12 @@ def main():
             unit_comparison = st.session_state.get("unit_comparison", {})
             unit_count = st.session_state.get("unit_count", len(units))
 
+            # 입력된 호수 정보 표시
+            parsed_info = st.session_state.get("parsed_info", {})
+            input_ho = parsed_info.get("ho", "정보 없음")
+
             st.warning(f"⚠️ 같은 층에 **{unit_count}개의 전유부분**이 있습니다!")
+            st.info(f"📝 입력하신 호수: **{input_ho}**")
             st.info("👇 통임대 또는 분할임대를 선택하세요:")
 
             # 통임대 옵션 (전체)
@@ -2507,8 +2541,8 @@ def main():
                     st.markdown(
                         f"""
                     <div style="background-color: {bg_color}; padding: 10px; border-radius: 10px; border: 2px solid {border_color}; margin-bottom: 8px;">
-                        <h4 style="color: {border_color}; margin: 0 0 5px 0; font-size: 16px;">🏠 호수 {idx + 1}: {ho_text}</h4>
-                        <p style="margin: 3px 0; font-size: 14px;">{ho_text} ├─ {unit['area']:.2f}㎡ - {usage_str}</p>
+                        <h4 style="color: {border_color}; margin: 0 0 5px 0; font-size: 16px;">🏠 {ho_text}</h4>
+                        <p style="margin: 3px 0; font-size: 14px;">{unit['area']:.2f}㎡ - {usage_str}</p>
                         {'<p style="margin: 5px 0 0 0; color: #4caf50; font-size: 13px;"><strong>✅ 카톡 면적과 일치합니다</strong></p>' if is_unit_recommended else ''}
                     </div>
                     """,
@@ -2516,7 +2550,7 @@ def main():
                     )
 
                     if st.button(
-                        f"✅ 호수 {idx + 1} 선택",
+                        f"✅ {ho_text} 선택",
                         key=f"select_unit_{idx}",
                         type="primary" if is_unit_recommended else "secondary",
                         use_container_width=True,
@@ -2987,6 +3021,7 @@ def main():
             copy_text = display_text
 
             # 특정 키워드를 빨간색 굵은 글씨로 변경 (HTML 버전)
+            import re
             keywords_to_highlight = [
                 "확인요망",
                 "위반건축물",
@@ -2996,9 +3031,21 @@ def main():
             ]
             display_text_html = display_text
 
+            # 기본 키워드 강조
             for keyword in keywords_to_highlight:
                 display_text_html = display_text_html.replace(
                     keyword, f"<span style='color: red; font-weight: bold;'>{keyword}</span>", )
+
+            # "(확인요망)" 패턴이 포함된 텍스트 강조 (예: "대중음식점(확인요망)")
+            # 용도: 뒤에 나오는 텍스트를 찾아서 강조
+            pattern = r'(용도:\s*)([^\n]+\(확인요망\))'
+
+            def replace_usage(match):
+                prefix = match.group(1)  # "용도: "
+                usage_text = match.group(2)  # "대중음식점(확인요망)"
+                return f"{prefix}<span style='color: red; font-weight: bold;'>{usage_text}</span>"
+            display_text_html = re.sub(
+                pattern, replace_usage, display_text_html)
 
         # 🎯 경고 메시지들을 결과 위에 표시
         for warning_html in warning_htmls:
@@ -3058,7 +3105,7 @@ def main():
                         """소재지 라인에서 번지수를 제거하는 함수"""
                         lines = text.split('\n')
                         processed_lines = []
-                        
+
                         for line in lines:
                             # 소재지 라인 찾기
                             if '소재지:' in line or '소재지 :' in line:
@@ -3069,23 +3116,25 @@ def main():
                                 else:
                                     prefix = line.split('소재지 :')[0] + '소재지 :'
                                     address = line.split('소재지 :')[1].strip()
-                                
+
                                 # 번지수 패턴 제거 (예: 123-45, 123번지, 123, 산123-45 등)
                                 # 마지막 공백 이후의 숫자 패턴 제거
                                 import re
                                 # 패턴: 숫자-숫자, 숫자번지, 산숫자-숫자, 단순 숫자 등
-                                address_cleaned = re.sub(r'\s+(산\s*)?\d+(-\d+)?(번지)?$', '', address)
-                                
+                                address_cleaned = re.sub(
+                                    r'\s+(산\s*)?\d+(-\d+)?(번지)?$', '', address)
+
                                 # 재조립
-                                processed_lines.append(f"{prefix} {address_cleaned}")
+                                processed_lines.append(
+                                    f"{prefix} {address_cleaned}")
                             else:
                                 processed_lines.append(line)
-                        
+
                         return '\n'.join(processed_lines)
-                    
+
                     # 번지수 제거된 텍스트
                     copy_text_cleaned = remove_address_numbers(copy_text)
-                    
+
                     # pyperclip을 사용하여 클립보드에 복사
                     try:
                         import pyperclip
