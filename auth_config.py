@@ -8,17 +8,20 @@ from datetime import datetime, timedelta
 
 # 접속 비밀번호 설정 (SHA256 해시값으로 저장)
 # Streamlit Cloud에서는 Secrets에서, 로컬에서는 환경변수에서 가져옴
-try:
-    import streamlit as st
-    # Streamlit Cloud의 Secrets 사용
-    ACCESS_PASSWORD_HASH = st.secrets.get(
-        "ACCESS_PASSWORD_HASH",
-        "248d7b40f79c4f8eee8a89d9b7e3d2d11d34217f2867cca567fa9c6e1609bf38")
-except BaseException:
-    # 로컬 환경: 기본값 사용 (noma123)
-    ACCESS_PASSWORD_HASH = os.getenv(
-        "ACCESS_PASSWORD_HASH",
-        "248d7b40f79c4f8eee8a89d9b7e3d2d11d34217f2867cca567fa9c6e1609bf38")
+import os
+
+# 1. Render 설정(Environment)에서 비밀번호 가져오기
+def get_password():
+    # Render에 설정한 'MY_REAL_PASSWORD'를 가져오고, 없으면 'noma'를 사용
+    return os.environ.get("MY_REAL_PASSWORD", "noma")
+
+# 2. 실제 인증에 사용할 변수
+ACCESS_PASSWORD = get_password()
+
+# 3. 로그인 버튼을 누를 때 실행되는 비밀번호 확인 함수
+def verify_password(password):
+    # 입력한 비번과 서버 설정 비번이 일치하는지 확인
+    return password == ACCESS_PASSWORD
 
 # 토큰 유효기간 (일)
 TOKEN_VALIDITY_DAYS = 7
