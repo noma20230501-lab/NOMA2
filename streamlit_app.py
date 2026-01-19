@@ -155,7 +155,7 @@ def show_login_page():
                 st.warning("⚠️ 비밀번호를 입력하세요.")
             else:
                 try:
-                 from auth_config import verify_password, generate_token, create_token_data
+                    from auth_config import verify_password, generate_token, create_token_data
 
                     if verify_password(password):
                         # 토큰 생성
