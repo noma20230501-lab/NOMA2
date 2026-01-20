@@ -1,16 +1,16 @@
 === API 호출 URL (전유공용면적 조회) ===
 Base URL: https://apis.data.go.kr/1613000/BldRgstHubService/getBrExposPubuseAreaInfo
 파라미터 (serviceKey 제외):
-  sigunguCd: 27110
-  bjdongCd: 10600
-  bun: 0122
-  ji: 0000
-  mgmBldrgstPk: 10451100184813
+  sigunguCd: 27260
+  bjdongCd: 10100
+  bun: 0207
+  ji: 0007
+  mgmBldrgstPk: 105013146
   platGbCd: 0
-  numOfRows: 100
+  numOfRows: 10
   pageNo: 1
 
 전체 URL (serviceKey 제외):
-https://apis.data.go.kr/1613000/BldRgstHubService/getBrExposPubuseAreaInfo?sigunguCd=27110&bjdongCd=10600&bun=0122&ji=0000&mgmBldrgstPk=10451100184813&platGbCd=0&numOfRows=100&pageNo=1
+https://apis.data.go.kr/1613000/BldRgstHubService/getBrExposPubuseAreaInfo?sigunguCd=27260&bjdongCd=10100&bun=0207&ji=0007&mgmBldrgstPk=105013146&platGbCd=0&numOfRows=10&pageNo=1
 
 ⚠️ dongNm 파라미터가 전달되지 않음 (의도된 동작)

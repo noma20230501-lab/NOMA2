@@ -326,7 +326,7 @@ class BankInfoValidator:
         if kakao_illegal is True:
             kakao_display = '⚠️ 위반건축물 O'
         elif kakao_illegal is False:
-            kakao_display = '✅ 위반건축물 X'
+            kakao_display = '✅ 해당없음'
 
         # 비교 로직
         # 1. 둘 다 정보가 있는 경우

@@ -339,7 +339,11 @@ class NaverBankParser:
     def _parse_direction(self, text: str) -> Optional[str]:
         """방향 파싱"""
         # "필수 방향" 섹션에서 찾기
-        match = re.search(r'필수\s*방향.*?(동|서|남|북|동남|동북|서남|서북)', text, re.DOTALL)
+        # ✅ 긴 패턴(동남, 남동 등)을 먼저 매칭해야 "남동"이 "남"으로 잘못 파싱되지 않음
+        match = re.search(
+            r'필수\s*방향.*?(동남|동북|서남|서북|남동|남서|북동|북서|동|서|남|북)',
+            text,
+            re.DOTALL)
         if match:
             direction = match.group(1)
             # "향" 붙이기

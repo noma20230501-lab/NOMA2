@@ -1871,7 +1871,7 @@ def main():
                     if violation is True:
                         violation_str = "⚠️ 위반건축물 O"
                     elif violation is False:
-                        violation_str = "✅ 위반건축물 X"
+                        violation_str = "✅ 해당없음"
                     else:
                         violation_str = ':red[**None**]'
 
