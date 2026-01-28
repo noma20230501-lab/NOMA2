@@ -14,7 +14,7 @@ body > div.Neonet_header > div.nthTop > div.t_right > div > a:nth-child(1) 중�
 
 #offerings_sub_gbn 건물종류
 
-#usage_gbn 건축물용도 (여러개중에 선택해야함)
+#usage_gbn 건축물용도 선택
 
 #metro_cd 소재지 시/도 선택
 

@@ -1,16 +1,15 @@
 === 중개대상물 종류 결정 로직 디버깅 ===
-호수: 603
-is_collective_building: True
-unit_usage (전유부에서 추출): 다세대주택
-floor (검색할 층): 5
+호수: None
+is_collective_building: False
+unit_usage (전유부에서 추출): None
+floor (검색할 층): 4
 
-[Case A] 집합건물 로직 실행
-층별개요에서 찾은 용도:
-  floor_usage_str: None
-  floor_etc_usage_str: 도시형생활주택(다세대주택, 5세대)
-  unit_usage: 다세대주택
-최종 usage_str_for_judgment: 도시형생활주택(다세대주택, 5세대)
-판정된 judged_usage: 공동주택
-→ final_usage = judged_usage: 공동주택
+[Case B] 일반건물 로직 실행
+층별개요에서 추출한 용도 목록:
+  floor_actual_usage_list: []
+  floor_etc_usage_list: ['제1종근린생활시설(휴게음식점)']
+  all_floor_usages: ['제1종근린생활시설(휴게음식점)']
+usage_judgment에서 가져온 judged_usage: 제1종 근린생활시설
+→ final_usage = judged_usage: 제1종 근린생활시설, show_usage_warning: False
 
-최종 final_usage: 공동주택
+최종 final_usage: 제1종 근린생활시설
