@@ -1952,7 +1952,8 @@ class PropertyAdSystem:
             floor_result,
             area_result,
             floor,
-            unit_result=None):
+            unit_result=None,
+            selected_units_info=None):
         """건축물대장 해당 층 전용면적과 카카오톡 매물 면적 비교 (호수 포함, 전유부 우선)"""
         kakao_area = parsed.get('area_m2')
         if not kakao_area:
@@ -1970,13 +1971,19 @@ class PropertyAdSystem:
         print(
             f"🔍 [_compare_areas] kakao_area={kakao_area}, actual_area_m2={
                 parsed.get('actual_area_m2')}, floor={floor}, ho={
-                parsed.get('ho')}")
+                parsed.get('ho')}, selected_units_info={selected_units_info}")
 
-        # _get_floor_area_from_api를 사용하여 면적 찾기 (일관성 있는 방법)
-        registry_area = self._get_floor_area_from_api(
-            floor_result, floor, area_result, ho, unit_result)
-        print(
-            f"🔍 [_compare_areas] _get_floor_area_from_api 결과: registry_area={registry_area}")
+        # 🔥 사용자가 선택한 전유부분 정보가 있으면 최우선으로 사용
+        if selected_units_info and selected_units_info.get("area"):
+            registry_area = selected_units_info["area"]
+            print(
+                f"🎯 [_compare_areas] 선택된 전유부분 면적 사용: registry_area={registry_area}㎡")
+        else:
+            # _get_floor_area_from_api를 사용하여 면적 찾기 (일관성 있는 방법)
+            registry_area = self._get_floor_area_from_api(
+                floor_result, floor, area_result, ho, unit_result)
+            print(
+                f"🔍 [_compare_areas] _get_floor_area_from_api 결과: registry_area={registry_area}")
 
         # 못 찾았으면 기존 로직 시도
         if not registry_area:

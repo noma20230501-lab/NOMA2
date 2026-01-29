@@ -898,8 +898,9 @@ def generate_blog_ad_web(kakao_text):
                 del st.session_state["selected_usage"]
 
         # 면적 비교 (unit_result 전달하여 층/호수 검색 강화)
+        # 🔥 선택된 전유부분 정보도 함께 전달
         area_comparison = system._compare_areas(
-            parsed, building, floor_result, area_result, floor, unit_result
+            parsed, building, floor_result, area_result, floor, unit_result, selected_units_info
         )
 
         # area_comparison이 None이면 빈 딕셔너리로 초기화
