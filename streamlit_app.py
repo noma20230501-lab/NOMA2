@@ -58,55 +58,59 @@ def clear_auth_token():
 
 def check_authentication():
     """인증 상태 확인"""
-    try:
-        from auth_config import verify_password, is_token_valid, generate_token, create_token_data
+    # 🔓 로그인 비활성화: 항상 인증된 것으로 처리
+    return True
+    
+    # ⬇️ 아래 코드는 로그인을 다시 활성화하려면 위의 'return True'를 주석처리하고 사용하세요
+    # try:
+    #     from auth_config import verify_password, is_token_valid, generate_token, create_token_data
 
-        # 세션 상태 초기화
-        if 'authenticated' not in st.session_state:
-            st.session_state.authenticated = False
-        if 'auth_token' not in st.session_state:
-            st.session_state.auth_token = None
-        if 'user_nickname' not in st.session_state:
-            st.session_state.user_nickname = None
+    #     # 세션 상태 초기화
+    #     if 'authenticated' not in st.session_state:
+    #         st.session_state.authenticated = False
+    #     if 'auth_token' not in st.session_state:
+    #         st.session_state.auth_token = None
+    #     if 'user_nickname' not in st.session_state:
+    #         st.session_state.user_nickname = None
 
-        # 파일에서 토큰 로드 시도 (한 번만)
-        if not st.session_state.authenticated and 'token_loaded' not in st.session_state:
-            st.session_state.token_loaded = True
-            saved_data = load_auth_token()
+    #     # 파일에서 토큰 로드 시도 (한 번만)
+    #     if not st.session_state.authenticated and 'token_loaded' not in st.session_state:
+    #         st.session_state.token_loaded = True
+    #         saved_data = load_auth_token()
 
-            if saved_data:
-                try:
-                    token_data = saved_data['token_data']
-                    nickname = saved_data['nickname']
+    #         if saved_data:
+    #             try:
+    #                 token_data = saved_data['token_data']
+    #                 nickname = saved_data['nickname']
 
-                    # 토큰 유효성 검증
-                    if is_token_valid(token_data):
-                        st.session_state.auth_token = token_data
-                        st.session_state.user_nickname = nickname
-                        st.session_state.authenticated = True
-                        return True
-                    else:
-                        # 토큰 만료 시 파일 삭제
-                        clear_auth_token()
-                except BaseException:
-                    pass
+    #                 # 토큰 유효성 검증
+    #                 if is_token_valid(token_data):
+    #                     st.session_state.auth_token = token_data
+    #                     st.session_state.user_nickname = nickname
+    #                     st.session_state.authenticated = True
+    #                     return True
+    #                 else:
+    #                     # 토큰 만료 시 파일 삭제
+    #                     clear_auth_token()
+    #             except BaseException:
+    #                 pass
 
-        # 세션에서 토큰 확인
-        if st.session_state.auth_token:
-            if is_token_valid(st.session_state.auth_token):
-                st.session_state.authenticated = True
-                return True
-            else:
-                # 토큰 만료
-                st.session_state.auth_token = None
-                st.session_state.authenticated = False
-                clear_auth_token()
+    #     # 세션에서 토큰 확인
+    #     if st.session_state.auth_token:
+    #         if is_token_valid(st.session_state.auth_token):
+    #             st.session_state.authenticated = True
+    #             return True
+    #         else:
+    #             # 토큰 만료
+    #             st.session_state.auth_token = None
+    #             st.session_state.authenticated = False
+    #             clear_auth_token()
 
-        return st.session_state.authenticated
+    #     return st.session_state.authenticated
 
-    except Exception as e:
-        st.error(f"인증 시스템 오류: {str(e)}")
-        return False
+    # except Exception as e:
+    #     st.error(f"인증 시스템 오류: {str(e)}")
+    #     return False
 
 
 def show_login_page():
@@ -1284,33 +1288,53 @@ def main():
         with col3:
             if st.session_state.get('parsed_bank_result'):
                 if st.button("📋 파싱 결과 복사", use_container_width=True):
-                    # pyperclip을 사용하여 클립보드에 복사
-                    copy_text_b = st.session_state.get(
-                        'parsed_bank_result', '')
-                    try:
-                        import pyperclip
-                        pyperclip.copy(copy_text_b)
-                        st.toast("✅ 복사 완료!", icon="✅")
-                    except ImportError:
-                        # pyperclip이 없으면 텍스트 영역으로 대체
-                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
-                        st.text_area(
-                            "복사할 텍스트",
-                            copy_text_b,
-                            height=200,
-                            key="copy_text_area_bank",
-                            label_visibility="collapsed"
-                        )
-                    except Exception as e:
-                        # pyperclip이 작동하지 않으면 텍스트 영역으로 대체
-                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
-                        st.text_area(
-                            "복사할 텍스트",
-                            copy_text_b,
-                            height=200,
-                            key="copy_text_area_bank",
-                            label_visibility="collapsed"
-                        )
+                    # 🔥 JavaScript를 사용한 복사 (웹 환경에서도 작동)
+                    copy_text_b = st.session_state.get('parsed_bank_result', '')
+                    import html
+                    escaped_text_b = html.escape(copy_text_b).replace('\n', '\\n').replace("'", "\\'")
+                    
+                    copy_js_b = f"""
+                    <script>
+                    function copyToClipboardBank() {{
+                        const text = '{escaped_text_b}';
+                        
+                        // Clipboard API 사용 (최신 브라우저)
+                        if (navigator.clipboard && window.isSecureContext) {{
+                            navigator.clipboard.writeText(text).then(function() {{
+                                console.log('복사 성공!');
+                            }}).catch(function(err) {{
+                                console.error('복사 실패:', err);
+                                fallbackCopyBank(text);
+                            }});
+                        }} else {{
+                            fallbackCopyBank(text);
+                        }}
+                        
+                        function fallbackCopyBank(text) {{
+                            const textArea = document.createElement('textarea');
+                            textArea.value = text;
+                            textArea.style.position = 'fixed';
+                            textArea.style.left = '-999999px';
+                            document.body.appendChild(textArea);
+                            textArea.focus();
+                            textArea.select();
+                            try {{
+                                document.execCommand('copy');
+                                console.log('Fallback 복사 성공!');
+                            }} catch (err) {{
+                                console.error('Fallback 복사 실패:', err);
+                            }}
+                            document.body.removeChild(textArea);
+                        }}
+                    }}
+                    
+                    // 즉시 실행
+                    copyToClipboardBank();
+                    </script>
+                    """
+                    
+                    components.html(copy_js_b, height=0)
+                    st.toast("✅ 복사 완료!", icon="✅")
 
         if parse_btn and bank_text:
             from kakao_parser import KakaoPropertyParser
@@ -3136,31 +3160,53 @@ def main():
                     # 번지수 제거된 텍스트
                     copy_text_cleaned = remove_address_numbers(copy_text)
 
-                    # pyperclip을 사용하여 클립보드에 복사
-                    try:
-                        import pyperclip
-                        pyperclip.copy(copy_text_cleaned)
-                        st.success("✅ 복사 완료! (번지수 제외)")
-                    except ImportError:
-                        # pyperclip이 없으면 텍스트 영역으로 대체
-                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
-                        st.text_area(
-                            "복사할 텍스트",
-                            copy_text_cleaned,
-                            height=200,
-                            key="copy_text_area",
-                            label_visibility="collapsed"
-                        )
-                    except Exception as e:
-                        # pyperclip이 작동하지 않으면 텍스트 영역으로 대체
-                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
-                        st.text_area(
-                            "복사할 텍스트",
-                            copy_text_cleaned,
-                            height=200,
-                            key="copy_text_area",
-                            label_visibility="collapsed"
-                        )
+                    # 🔥 JavaScript를 사용한 복사 (웹 환경에서도 작동)
+                    import html
+                    escaped_text = html.escape(copy_text_cleaned).replace('\n', '\\n').replace("'", "\\'")
+                    
+                    copy_js = f"""
+                    <script>
+                    function copyToClipboard() {{
+                        const text = '{escaped_text}';
+                        
+                        // Clipboard API 사용 (최신 브라우저)
+                        if (navigator.clipboard && window.isSecureContext) {{
+                            navigator.clipboard.writeText(text).then(function() {{
+                                console.log('복사 성공!');
+                            }}).catch(function(err) {{
+                                console.error('복사 실패:', err);
+                                fallbackCopy(text);
+                            }});
+                        }} else {{
+                            fallbackCopy(text);
+                        }}
+                        
+                        function fallbackCopy(text) {{
+                            // 구형 브라우저 대체 방법
+                            const textArea = document.createElement('textarea');
+                            textArea.value = text;
+                            textArea.style.position = 'fixed';
+                            textArea.style.left = '-999999px';
+                            document.body.appendChild(textArea);
+                            textArea.focus();
+                            textArea.select();
+                            try {{
+                                document.execCommand('copy');
+                                console.log('Fallback 복사 성공!');
+                            }} catch (err) {{
+                                console.error('Fallback 복사 실패:', err);
+                            }}
+                            document.body.removeChild(textArea);
+                        }}
+                    }}
+                    
+                    // 즉시 실행
+                    copyToClipboard();
+                    </script>
+                    """
+                    
+                    components.html(copy_js, height=0)
+                    st.success("✅ 복사 완료! (번지수 제외)")
 
 
 if __name__ == "__main__":

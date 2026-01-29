@@ -2,14 +2,14 @@
 호수: None
 is_collective_building: False
 unit_usage (전유부에서 추출): None
-floor (검색할 층): 4
+floor (검색할 층): 1
 
 [Case B] 일반건물 로직 실행
 층별개요에서 추출한 용도 목록:
   floor_actual_usage_list: []
-  floor_etc_usage_list: ['제1종근린생활시설(휴게음식점)']
-  all_floor_usages: ['제1종근린생활시설(휴게음식점)']
-usage_judgment에서 가져온 judged_usage: 제1종 근린생활시설
-→ final_usage = judged_usage: 제1종 근린생활시설, show_usage_warning: False
+  floor_etc_usage_list: ['소매점', '제2종근린생활시설(사무소)']
+  all_floor_usages: ['소매점', '제2종근린생활시설(사무소)']
+usage_judgment에서 가져온 judged_usage: 제2종 근린생활시설
+→ final_usage = judged_usage: 제2종 근린생활시설, show_usage_warning: False
 
-최종 final_usage: 제1종 근린생활시설
+최종 final_usage: 제2종 근린생활시설
