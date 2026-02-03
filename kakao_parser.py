@@ -171,14 +171,17 @@ class KakaoPropertyParser:
         # 나머지 줄 파싱 (번호 리스트 영역만)
         for line in numbered_lines:
             # 보증금/월세 추출 (예: 500/35)
-            deposit_rent = self._parse_deposit_rent(line)
-            if deposit_rent:
-                result['deposit'] = deposit_rent[0]
-                result['monthly_rent'] = deposit_rent[1]
-                if '부가세없음' in line or '부가세 없음' in line or 'vat' in line.lower():
-                    result['vat_included'] = False
-                elif '부가세포함' in line or '부가세 포함' in line:
-                    result['vat_included'] = True
+            # ✅ 1번 항목에서만 보증금/월세 파싱 (권리금 등과 혼동 방지)
+            # ✅ 보증금/월세가 아직 없고, "권리" 키워드가 없는 줄에서만 파싱
+            if not result['deposit'] and not result['monthly_rent'] and '권리' not in line:
+                deposit_rent = self._parse_deposit_rent(line)
+                if deposit_rent:
+                    result['deposit'] = deposit_rent[0]
+                    result['monthly_rent'] = deposit_rent[1]
+                    if '부가세없음' in line or '부가세 없음' in line or 'vat' in line.lower():
+                        result['vat_included'] = False
+                    elif '부가세포함' in line or '부가세 포함' in line:
+                        result['vat_included'] = True
 
             # 관리비
             if '관리비' in line:

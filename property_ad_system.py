@@ -219,7 +219,7 @@ class PropertyAdSystem:
 
         self.verify_btn = ttk.Button(
             self.button_frame,
-            text="광고 검수 시작",
+            text="모드 B: 네이버부동산 확인",
             command=self.verify_naver_ad,
             state=tk.DISABLED)
         self.verify_btn.pack(side=tk.LEFT, padx=5)

@@ -5,11 +5,11 @@ dong_nm (입력): None
 dongNm 파라미터: 없음 (전달 안 됨)
 
 전체 파라미터 (serviceKey 제외):
-  sigunguCd: 27200
-  bjdongCd: 10100
-  bun: 0161
-  ji: 0012
-  mgmBldrgstPk: 10481475
+  sigunguCd: 27110
+  bjdongCd: 14200
+  bun: 0019
+  ji: 0006
+  mgmBldrgstPk: 104519005
   platGbCd: 0
   numOfRows: 100
   pageNo: 1
