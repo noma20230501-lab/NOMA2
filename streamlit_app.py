@@ -17,7 +17,7 @@ import base64
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-# ==================== 인증 및 피드백 관련 함수 ====================
+# ==================== 인증 관련 함수 ====================
 
 def save_auth_token(token_data, nickname):
     """토큰을 로컬 파일에 저장"""
@@ -58,59 +58,55 @@ def clear_auth_token():
 
 def check_authentication():
     """인증 상태 확인"""
-    # 🔓 로그인 비활성화: 항상 인증된 것으로 처리
-    return True
-    
-    # ⬇️ 아래 코드는 로그인을 다시 활성화하려면 위의 'return True'를 주석처리하고 사용하세요
-    # try:
-    #     from auth_config import verify_password, is_token_valid, generate_token, create_token_data
+    try:
+        from auth_config import verify_password, is_token_valid, generate_token, create_token_data
 
-    #     # 세션 상태 초기화
-    #     if 'authenticated' not in st.session_state:
-    #         st.session_state.authenticated = False
-    #     if 'auth_token' not in st.session_state:
-    #         st.session_state.auth_token = None
-    #     if 'user_nickname' not in st.session_state:
-    #         st.session_state.user_nickname = None
+        # 세션 상태 초기화
+        if 'authenticated' not in st.session_state:
+            st.session_state.authenticated = False
+        if 'auth_token' not in st.session_state:
+            st.session_state.auth_token = None
+        if 'user_nickname' not in st.session_state:
+            st.session_state.user_nickname = None
 
-    #     # 파일에서 토큰 로드 시도 (한 번만)
-    #     if not st.session_state.authenticated and 'token_loaded' not in st.session_state:
-    #         st.session_state.token_loaded = True
-    #         saved_data = load_auth_token()
+        # 파일에서 토큰 로드 시도 (한 번만)
+        if not st.session_state.authenticated and 'token_loaded' not in st.session_state:
+            st.session_state.token_loaded = True
+            saved_data = load_auth_token()
 
-    #         if saved_data:
-    #             try:
-    #                 token_data = saved_data['token_data']
-    #                 nickname = saved_data['nickname']
+            if saved_data:
+                try:
+                    token_data = saved_data['token_data']
+                    nickname = saved_data['nickname']
 
-    #                 # 토큰 유효성 검증
-    #                 if is_token_valid(token_data):
-    #                     st.session_state.auth_token = token_data
-    #                     st.session_state.user_nickname = nickname
-    #                     st.session_state.authenticated = True
-    #                     return True
-    #                 else:
-    #                     # 토큰 만료 시 파일 삭제
-    #                     clear_auth_token()
-    #             except BaseException:
-    #                 pass
+                    # 토큰 유효성 검증
+                    if is_token_valid(token_data):
+                        st.session_state.auth_token = token_data
+                        st.session_state.user_nickname = nickname
+                        st.session_state.authenticated = True
+                        return True
+                    else:
+                        # 토큰 만료 시 파일 삭제
+                        clear_auth_token()
+                except BaseException:
+                    pass
 
-    #     # 세션에서 토큰 확인
-    #     if st.session_state.auth_token:
-    #         if is_token_valid(st.session_state.auth_token):
-    #             st.session_state.authenticated = True
-    #             return True
-    #         else:
-    #             # 토큰 만료
-    #             st.session_state.auth_token = None
-    #             st.session_state.authenticated = False
-    #             clear_auth_token()
+        # 세션에서 토큰 확인
+        if st.session_state.auth_token:
+            if is_token_valid(st.session_state.auth_token):
+                st.session_state.authenticated = True
+                return True
+            else:
+                # 토큰 만료
+                st.session_state.auth_token = None
+                st.session_state.authenticated = False
+                clear_auth_token()
 
-    #     return st.session_state.authenticated
+        return st.session_state.authenticated
 
-    # except Exception as e:
-    #     st.error(f"인증 시스템 오류: {str(e)}")
-    #     return False
+    except Exception as e:
+        st.error(f"인증 시스템 오류: {str(e)}")
+        return False
 
 
 def show_login_page():
@@ -190,33 +186,8 @@ def show_login_page():
         """)
 
 
-def save_feedback(feedback_data):
-    """피드백 저장"""
-    feedback_file = 'feedbacks.json'
-
-    try:
-        # 기존 피드백 로드
-        if os.path.exists(feedback_file):
-            with open(feedback_file, 'r', encoding='utf-8') as f:
-                feedbacks = json.load(f)
-        else:
-            feedbacks = []
-
-        # 새 피드백 추가
-        feedbacks.append(feedback_data)
-
-        # 저장
-        with open(feedback_file, 'w', encoding='utf-8') as f:
-            json.dump(feedbacks, f, ensure_ascii=False, indent=2)
-
-        return True
-    except Exception as e:
-        st.error(f"피드백 저장 중 오류: {str(e)}")
-        return False
-
-
-def show_feedback_sidebar():
-    """사이드바에 피드백 버튼 및 로그아웃 표시"""
+def show_user_sidebar():
+    """사이드바에 사용자 정보 및 로그아웃 표시"""
     with st.sidebar:
         st.markdown("---")
 
@@ -242,75 +213,6 @@ def show_feedback_sidebar():
                 st.caption(f"🕐 토큰 만료: {remaining_days}일 후")
             except BaseException:
                 pass
-
-        st.markdown("---")
-        st.markdown("### 📝 오류 제보")
-
-        if st.button("🐛 오류 제보하기", use_container_width=True):
-            st.session_state.show_feedback_form = True
-
-        # 피드백 폼 표시
-        if st.session_state.get('show_feedback_form', False):
-            with st.form("feedback_form"):
-                st.markdown("#### 오류 제보 양식")
-
-                # 제보자 이름 (자동)
-                reporter_name = st.session_state.get('user_nickname', '익명')
-                st.info(f"제보자: **{reporter_name}**")
-
-                # 오류 유형 (필수)
-                col1, col2 = st.columns(2)
-                with col1:
-                    mode_type = st.selectbox(
-                        "모드 선택 *",
-                        ["모드 A", "모드 B"],
-                        key="feedback_mode"
-                    )
-                with col2:
-                    feedback_type = st.selectbox(
-                        "오류 유형 *",
-                        ["버그/오류", "기능 개선 제안", "UI/UX 개선", "기타"],
-                        key="feedback_type"
-                    )
-
-                # 상세 내용 (제목 삭제, 바로 내용 작성)
-                description = st.text_area(
-                    "오류 내용 *",
-                    placeholder="오류 상황, 재현 방법, 기대했던 동작 등을 자세히 적어주세요",
-                    height=200,
-                    key="feedback_description"
-                )
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    submit = st.form_submit_button(
-                        "제출", type="primary", use_container_width=True)
-                with col2:
-                    cancel = st.form_submit_button(
-                        "취소", use_container_width=True)
-
-                if submit:
-                    if description:
-                        feedback_data = {
-                            'id': datetime.now().strftime("%Y%m%d%H%M%S"),
-                            'timestamp': datetime.now().isoformat(),
-                            'reporter': reporter_name,
-                            'mode': mode_type,
-                            'type': feedback_type,
-                            'description': description,
-                            'status': 'pending'
-                        }
-
-                        if save_feedback(feedback_data):
-                            st.success("✅ 제보가 완료되었습니다! 감사합니다.")
-                            st.session_state.show_feedback_form = False
-                            st.rerun()
-                    else:
-                        st.error("❌ 오류 내용을 입력해주세요.")
-
-                if cancel:
-                    st.session_state.show_feedback_form = False
-                    st.rerun()
 
 
 # ==================== 기존 코드 ====================
@@ -902,9 +804,8 @@ def generate_blog_ad_web(kakao_text):
                 del st.session_state["selected_usage"]
 
         # 면적 비교 (unit_result 전달하여 층/호수 검색 강화)
-        # 🔥 선택된 전유부분 정보도 함께 전달
         area_comparison = system._compare_areas(
-            parsed, building, floor_result, area_result, floor, unit_result, selected_units_info
+            parsed, building, floor_result, area_result, floor, unit_result
         )
 
         # area_comparison이 None이면 빈 딕셔너리로 초기화
@@ -1134,8 +1035,8 @@ def main():
         show_login_page()
         return
 
-    # ==================== 피드백 사이드바 ====================
-    show_feedback_sidebar()
+    # ==================== 사용자 사이드바 ====================
+    show_user_sidebar()
 
     # ==================== 기존 시스템 로직 ====================
     # 시스템 초기화
@@ -1187,7 +1088,7 @@ def main():
 
     with mode_col2:
         if st.button(
-            "🔍 모드 B: 필수표시사항 검증",
+            "🔍 모드 B: 네이버부동산 검증",
             use_container_width=True,
             type="primary" if st.session_state.get(
                 "mode",
@@ -1201,7 +1102,7 @@ def main():
     # 현재 선택된 모드 표시
     current_mode = st.session_state.get("mode", "A")
     mode_name = (
-        "📋 모드 A: 블로그 광고 생성" if current_mode == "A" else "🔍 모드 B: 필수표시사항 검증"
+        "📋 모드 A: 블로그 광고 생성" if current_mode == "A" else "🔍 모드 B: 네이버부동산 검증"
     )
     st.markdown(f"### {mode_name}")
 
@@ -1228,13 +1129,13 @@ def main():
                 "부동산뱅크 페이지:",
                 height=320,
                 key=bank_input_key,
-                placeholder="필수건물종류\t일반상가\n필수건축물용도\t제1종 근린생활시설\n필수소재지\t대구\t중구\t대봉동\n...",
                 label_visibility="collapsed")
 
         with input_col2:
             st.markdown(
                 '<h4 style="color: #2e7d32; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">💬 카카오톡 매물정보 (중요!)</h4>',
                 unsafe_allow_html=True)
+            st.caption("카카오톡 매물정보 Ctrl+A → Ctrl+C")
 
             # 카톡 정보 상태 표시 (파싱 완료 시만 표시)
             kakao_parsed_status = st.session_state.get('parsed_kakao_data_b')
@@ -1253,9 +1154,8 @@ def main():
             # 카톡 텍스트 입력
             kakao_text_b = st.text_area(
                 "카톡 매물 정보:",
-                height=280,
+                height=320,
                 key=kakao_bank_input_key,
-                placeholder="중구 대안동 70-1 4층\n1. 500/35 부가세없음\n2. 관리비 실비정산\n3. 무권리\n4. 제1종근생 사무소 / 24.36m2 / 약 7평\n5. 주차장있음 / 내부화장실1개\n6. 동향\n7. 등기o 위반x\n8. 임대인 010-1234-5678",
                 label_visibility="collapsed"
             )
 
@@ -1288,53 +1188,33 @@ def main():
         with col3:
             if st.session_state.get('parsed_bank_result'):
                 if st.button("📋 파싱 결과 복사", use_container_width=True):
-                    # 🔥 JavaScript를 사용한 복사 (웹 환경에서도 작동)
-                    copy_text_b = st.session_state.get('parsed_bank_result', '')
-                    import html
-                    escaped_text_b = html.escape(copy_text_b).replace('\n', '\\n').replace("'", "\\'")
-                    
-                    copy_js_b = f"""
-                    <script>
-                    function copyToClipboardBank() {{
-                        const text = '{escaped_text_b}';
-                        
-                        // Clipboard API 사용 (최신 브라우저)
-                        if (navigator.clipboard && window.isSecureContext) {{
-                            navigator.clipboard.writeText(text).then(function() {{
-                                console.log('복사 성공!');
-                            }}).catch(function(err) {{
-                                console.error('복사 실패:', err);
-                                fallbackCopyBank(text);
-                            }});
-                        }} else {{
-                            fallbackCopyBank(text);
-                        }}
-                        
-                        function fallbackCopyBank(text) {{
-                            const textArea = document.createElement('textarea');
-                            textArea.value = text;
-                            textArea.style.position = 'fixed';
-                            textArea.style.left = '-999999px';
-                            document.body.appendChild(textArea);
-                            textArea.focus();
-                            textArea.select();
-                            try {{
-                                document.execCommand('copy');
-                                console.log('Fallback 복사 성공!');
-                            }} catch (err) {{
-                                console.error('Fallback 복사 실패:', err);
-                            }}
-                            document.body.removeChild(textArea);
-                        }}
-                    }}
-                    
-                    // 즉시 실행
-                    copyToClipboardBank();
-                    </script>
-                    """
-                    
-                    components.html(copy_js_b, height=0)
-                    st.toast("✅ 복사 완료!", icon="✅")
+                    # pyperclip을 사용하여 클립보드에 복사
+                    copy_text_b = st.session_state.get(
+                        'parsed_bank_result', '')
+                    try:
+                        import pyperclip
+                        pyperclip.copy(copy_text_b)
+                        st.toast("✅ 복사 완료!", icon="✅")
+                    except ImportError:
+                        # pyperclip이 없으면 텍스트 영역으로 대체
+                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
+                        st.text_area(
+                            "복사할 텍스트",
+                            copy_text_b,
+                            height=200,
+                            key="copy_text_area_bank",
+                            label_visibility="collapsed"
+                        )
+                    except Exception as e:
+                        # pyperclip이 작동하지 않으면 텍스트 영역으로 대체
+                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
+                        st.text_area(
+                            "복사할 텍스트",
+                            copy_text_b,
+                            height=200,
+                            key="copy_text_area_bank",
+                            label_visibility="collapsed"
+                        )
 
         if parse_btn and bank_text:
             from kakao_parser import KakaoPropertyParser
@@ -2059,16 +1939,6 @@ def main():
             '<h4 style="color: #1976d2; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">📝 입력: 카카오톡 매물정보</h4>',
             unsafe_allow_html=True)
 
-        placeholder_text = """중구 대안동 70-1 4층
-1. 500/35 부가세없음
-2. 관리비 실비정산
-3. 무권리
-4. 제1종근생 사무소 / 24.36m2 / 약 7평
-5. 주차장있음 / 내부화장실1개
-6. 동향
-7. 등기o 위반x
-8. 임대인 010-1234-5678"""
-
         # 초기화를 위한 key 변경
         input_key = f"kakao_input_{
             st.session_state.get(
@@ -2078,7 +1948,6 @@ def main():
             "카카오톡 매물 정보:",
             height=350,
             key=input_key,
-            placeholder=placeholder_text,
             label_visibility="collapsed",
         )
 
@@ -3160,53 +3029,31 @@ def main():
                     # 번지수 제거된 텍스트
                     copy_text_cleaned = remove_address_numbers(copy_text)
 
-                    # 🔥 JavaScript를 사용한 복사 (웹 환경에서도 작동)
-                    import html
-                    escaped_text = html.escape(copy_text_cleaned).replace('\n', '\\n').replace("'", "\\'")
-                    
-                    copy_js = f"""
-                    <script>
-                    function copyToClipboard() {{
-                        const text = '{escaped_text}';
-                        
-                        // Clipboard API 사용 (최신 브라우저)
-                        if (navigator.clipboard && window.isSecureContext) {{
-                            navigator.clipboard.writeText(text).then(function() {{
-                                console.log('복사 성공!');
-                            }}).catch(function(err) {{
-                                console.error('복사 실패:', err);
-                                fallbackCopy(text);
-                            }});
-                        }} else {{
-                            fallbackCopy(text);
-                        }}
-                        
-                        function fallbackCopy(text) {{
-                            // 구형 브라우저 대체 방법
-                            const textArea = document.createElement('textarea');
-                            textArea.value = text;
-                            textArea.style.position = 'fixed';
-                            textArea.style.left = '-999999px';
-                            document.body.appendChild(textArea);
-                            textArea.focus();
-                            textArea.select();
-                            try {{
-                                document.execCommand('copy');
-                                console.log('Fallback 복사 성공!');
-                            }} catch (err) {{
-                                console.error('Fallback 복사 실패:', err);
-                            }}
-                            document.body.removeChild(textArea);
-                        }}
-                    }}
-                    
-                    // 즉시 실행
-                    copyToClipboard();
-                    </script>
-                    """
-                    
-                    components.html(copy_js, height=0)
-                    st.success("✅ 복사 완료! (번지수 제외)")
+                    # pyperclip을 사용하여 클립보드에 복사
+                    try:
+                        import pyperclip
+                        pyperclip.copy(copy_text_cleaned)
+                        st.success("✅ 복사 완료! (번지수 제외)")
+                    except ImportError:
+                        # pyperclip이 없으면 텍스트 영역으로 대체
+                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
+                        st.text_area(
+                            "복사할 텍스트",
+                            copy_text_cleaned,
+                            height=200,
+                            key="copy_text_area",
+                            label_visibility="collapsed"
+                        )
+                    except Exception as e:
+                        # pyperclip이 작동하지 않으면 텍스트 영역으로 대체
+                        st.info("💡 아래 텍스트를 선택해서 복사하세요 (Ctrl+A → Ctrl+C)")
+                        st.text_area(
+                            "복사할 텍스트",
+                            copy_text_cleaned,
+                            height=200,
+                            key="copy_text_area",
+                            label_visibility="collapsed"
+                        )
 
 
 if __name__ == "__main__":
