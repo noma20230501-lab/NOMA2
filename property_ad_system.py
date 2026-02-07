@@ -219,7 +219,7 @@ class PropertyAdSystem:
 
         self.verify_btn = ttk.Button(
             self.button_frame,
-            text="광고 검수 시작",
+            text="모드 B: 네이버부동산 확인",
             command=self.verify_naver_ad,
             state=tk.DISABLED)
         self.verify_btn.pack(side=tk.LEFT, padx=5)
@@ -1119,10 +1119,6 @@ class PropertyAdSystem:
             usage_lower = api_usage_str.lower()
             area = float(area_m2) if area_m2 else 0
 
-            # ✅ 일반음식점, 대중음식점 → 무조건 제2종 (최우선 체크!)
-            if '일반음식점' in usage_lower or '대중음식점' in usage_lower:
-                return ('제2종 근린생활시설', False, False)
-
             # 소매점 → 면적 기준 분류
             if '소매점' in usage_lower:
                 if area < 1000:
@@ -1136,6 +1132,10 @@ class PropertyAdSystem:
                     return ('제1종 근린생활시설', False, False)
                 else:
                     return ('제2종 근린생활시설', False, False)
+
+            # 일반음식점 → 무조건 제2종
+            if '일반음식점' in usage_lower:
+                return ('제2종 근린생활시설', False, False)
 
             # 사무소, 사무실 → 면적 기준 분류
             if '사무소' in usage_lower:
@@ -1225,10 +1225,6 @@ class PropertyAdSystem:
                     '공동주택']):
                 return ('공동주택', False, False)
 
-        # ✅ 일반음식점/대중음식점 최우선 체크 (소매점보다 먼저!)
-        if any(kw in usage_lower for kw in ['일반음식점', '대중음식점']):
-            return ('제2종 근린생활시설', False, False)
-
         # 2. 제1종 근린생활시설
         # 소매점(1000㎡ 미만)
         if any(
@@ -1293,8 +1289,8 @@ class PropertyAdSystem:
                 '제과점',
                 '카페']) and area >= 300:
             return ('제2종 근린생활시설', False, False)
-        # 안마시술소, 노래연습장 (일반음식점은 위에서 이미 처리됨)
-        if any(kw in usage_lower for kw in ['안마시술소', '노래연습장', '노래방']):
+        # 일반음식점, 안마시술소, 노래연습장
+        if any(kw in usage_lower for kw in ['일반음식점', '안마시술소', '노래연습장', '노래방']):
             return ('제2종 근린생활시설', False, False)
         # 단란주점(150㎡ 미만)
         if '단란주점' in usage_lower and area < 150:
@@ -1956,7 +1952,8 @@ class PropertyAdSystem:
             floor_result,
             area_result,
             floor,
-            unit_result=None):
+            unit_result=None,
+            selected_units_info=None):
         """건축물대장 해당 층 전용면적과 카카오톡 매물 면적 비교 (호수 포함, 전유부 우선)"""
         kakao_area = parsed.get('area_m2')
         if not kakao_area:
@@ -1974,13 +1971,19 @@ class PropertyAdSystem:
         print(
             f"🔍 [_compare_areas] kakao_area={kakao_area}, actual_area_m2={
                 parsed.get('actual_area_m2')}, floor={floor}, ho={
-                parsed.get('ho')}")
+                parsed.get('ho')}, selected_units_info={selected_units_info}")
 
-        # _get_floor_area_from_api를 사용하여 면적 찾기 (일관성 있는 방법)
-        registry_area = self._get_floor_area_from_api(
-            floor_result, floor, area_result, ho, unit_result)
-        print(
-            f"🔍 [_compare_areas] _get_floor_area_from_api 결과: registry_area={registry_area}")
+        # 🔥 사용자가 선택한 전유부분 정보가 있으면 최우선으로 사용
+        if selected_units_info and selected_units_info.get("area"):
+            registry_area = selected_units_info["area"]
+            print(
+                f"🎯 [_compare_areas] 선택된 전유부분 면적 사용: registry_area={registry_area}㎡")
+        else:
+            # _get_floor_area_from_api를 사용하여 면적 찾기 (일관성 있는 방법)
+            registry_area = self._get_floor_area_from_api(
+                floor_result, floor, area_result, ho, unit_result)
+            print(
+                f"🔍 [_compare_areas] _get_floor_area_from_api 결과: registry_area={registry_area}")
 
         # 못 찾았으면 기존 로직 시도
         if not registry_area:
@@ -3987,18 +3990,9 @@ class PropertyAdSystem:
                             # 1000㎡ 이상이면 "판매시설"로 기재
                             judged_usage = '판매시설'
 
-                # 3. 일반음식점, 안마시술소, 노래연습장 판정 (휴게음식점보다 먼저!)
-                # ✅ '일반음식점'은 '음식점'을 포함하므로 휴게음식점 판정보다 먼저 처리해야 함
+                # 3. 휴게음식점, 커피숍, 제과점 판정
                 if not judged_usage:
-                    general_food_keywords = ['일반음식점', '대중음식점', '안마시술소', '노래연습장', '노래방']
-                    is_general_food = any(
-                        keyword in unit_usage_str for keyword in general_food_keywords)
-                    if is_general_food:
-                        judged_usage = '제2종 근린생활시설'
-
-                # 4. 휴게음식점, 커피숍, 제과점 판정 (일반음식점 이후에!)
-                if not judged_usage:
-                    cafe_keywords = ['휴게음식점', '커피숍', '제과점', '카페']
+                    cafe_keywords = ['휴게음식점', '커피숍', '제과점', '카페', '음식점']
                     is_cafe = any(
                         keyword in unit_usage_str for keyword in cafe_keywords)
                     if is_cafe and unit_area_for_judgment:
@@ -4006,6 +4000,14 @@ class PropertyAdSystem:
                             judged_usage = '제1종 근린생활시설'
                         else:
                             judged_usage = '제2종 근린생활시설'
+
+                # 4. 일반음식점, 안마시술소, 노래연습장 판정
+                if not judged_usage:
+                    general_food_keywords = ['일반음식점', '안마시술소', '노래연습장', '노래방']
+                    is_general_food = any(
+                        keyword in unit_usage_str for keyword in general_food_keywords)
+                    if is_general_food:
+                        judged_usage = '제2종 근린생활시설'
 
                 # 5. 이용원, 미용원, 목욕장, 세탁소 판정
                 if not judged_usage:
@@ -4282,20 +4284,10 @@ class PropertyAdSystem:
                                     else:
                                         judged_usage_from_floor = '판매시설'
 
-                        # 3. 일반음식점, 안마시술소, 노래연습장 판정 (휴게음식점보다 먼저!)
-                        # ✅ '일반음식점'은 '음식점'을 포함하므로 휴게음식점 판정보다 먼저 처리해야 함
-                        if not judged_usage_from_floor:
-                            general_food_keywords = [
-                                '일반음식점', '대중음식점', '안마시술소', '노래연습장', '노래방']
-                            is_general_food = any(
-                                keyword in usage_str_for_judgment_lower for keyword in general_food_keywords)
-                            if is_general_food:
-                                judged_usage_from_floor = '제2종 근린생활시설'
-
-                        # 4. 휴게음식점, 커피숍, 제과점 판정 (일반음식점 이후에!)
+                        # 3. 휴게음식점, 커피숍, 제과점 판정
                         if not judged_usage_from_floor:
                             cafe_keywords = [
-                                '휴게음식점', '커피숍', '제과점', '카페']
+                                '휴게음식점', '커피숍', '제과점', '카페', '음식점']
                             is_cafe = any(
                                 keyword in usage_str_for_judgment_lower for keyword in cafe_keywords)
                             if is_cafe:
@@ -4303,6 +4295,15 @@ class PropertyAdSystem:
                                     judged_usage_from_floor = '제1종 근린생활시설'
                                 else:
                                     judged_usage_from_floor = '제2종 근린생활시설'
+
+                        # 4. 일반음식점, 안마시술소, 노래연습장 판정
+                        if not judged_usage_from_floor:
+                            general_food_keywords = [
+                                '일반음식점', '안마시술소', '노래연습장', '노래방']
+                            is_general_food = any(
+                                keyword in usage_str_for_judgment_lower for keyword in general_food_keywords)
+                            if is_general_food:
+                                judged_usage_from_floor = '제2종 근린생활시설'
 
                         # 5. 이용원, 미용원, 목욕장, 세탁소 판정
                         if not judged_usage_from_floor:
@@ -4462,11 +4463,13 @@ class PropertyAdSystem:
                                 usage_lower = usage_from_area_result.lower()
 
                                 # 음식점 계열 판정
-                                # ✅ 일반음식점, 대중음식점은 면적과 관계없이 무조건 제2종 근린생활시설
                                 if '대중음식점' in usage_lower or '일반음식점' in usage_lower:
-                                    final_usage = '제2종 근린생활시설'
+                                    if area_for_judgment < 300:
+                                        final_usage = '제1종 근린생활시설'
+                                    else:
+                                        final_usage = '제2종 근린생활시설'
                                     debug_usage_decision.append(
-                                        f"  → 일반/대중음식점 판정: {final_usage} (면적 무관)")
+                                        f"  → 음식점 판정: {final_usage} (면적: {area_for_judgment}㎡)")
                                 elif '휴게음식점' in usage_lower:
                                     if area_for_judgment < 300:
                                         final_usage = '제1종 근린생활시설'
@@ -4552,11 +4555,6 @@ class PropertyAdSystem:
                         break
             except BaseException:
                 pass
-
-        # ✅ final_usage가 결정되었으므로 usage_judgment를 업데이트
-        # 이렇게 하면 경고 메시지에서 judged_usage와 입력값이 일치하여 불필요한 경고가 표시되지 않음
-        if usage_judgment and final_usage and final_usage != "확인요망":
-            usage_judgment['judged_usage'] = final_usage
 
         input_usage_normalized = self._normalize_usage(input_usage)
         final_usage_normalized = self._normalize_usage(final_usage)
@@ -4858,11 +4856,7 @@ class PropertyAdSystem:
                 '대장위반x',
                 '위반사항없음',
                 '이상무', '이상없음',
-                # ✅ 'o', 'ㅇ', '○' 등 다양한 표기 모두 지원
-                '등기o', '등기ㅇ', '등기○', '등기완료',
-                '대장o', '대장ㅇ', '대장○', '대장완료',
-                '등기대장o', '등기대장ㅇ', '등기대장○',
-                '대장등기o', '대장등기ㅇ', '대장등기○',
+                '등기o', '등기완료',
             ]
 
             # 4~n번 항목에서 정상 키워드 검색 (띄어쓰기 무시)
