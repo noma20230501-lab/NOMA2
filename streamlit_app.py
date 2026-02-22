@@ -714,41 +714,41 @@ def generate_blog_ad_web(kakao_text):
             # 건축물이 1개만 있으면 자동 선택
             building = buildings[0]
 
-        # 층별 현황 조회
+        # ✅ 층별 현황 + 전유공용면적 + 전유부 API 병렬 호출 (속도 최적화)
         floor_result = None
-        if building and building.get("mgmBldrgstPk"):
-            floor_result = system.api.get_floor_info(
-                sigungu_cd=address_info["sigungu_code"],
-                bjdong_cd=address_info["bjdong_code"],
-                bun=address_info["bun"],
-                ji=address_info["ji"],
-                mgm_bldrgst_pk=building["mgmBldrgstPk"],
-                num_of_rows=50,
-            )
-
-        # 전유공용면적 조회
         area_result = None
-        if building and building.get("mgmBldrgstPk"):
-            area_result = system.api.get_unit_area_info(
-                sigungu_cd=address_info["sigungu_code"],
-                bjdong_cd=address_info["bjdong_code"],
-                bun=address_info["bun"],
-                ji=address_info["ji"],
-                mgm_bldrgst_pk=building["mgmBldrgstPk"],
-                num_of_rows=100,
-            )
-
-        # 전유부 조회 (호수가 있을 때만) - 층/호수 검색용
         unit_result = None
-        if ho and building and building.get("mgmBldrgstPk"):
-            unit_result = system.api.get_unit_info(
-                sigungu_cd=address_info["sigungu_code"],
-                bjdong_cd=address_info["bjdong_code"],
-                bun=address_info["bun"],
-                ji=address_info["ji"],
-                mgm_bldrgst_pk=building["mgmBldrgstPk"],
-                num_of_rows=100,
-            )
+        if building and building.get("mgmBldrgstPk"):
+            from concurrent.futures import ThreadPoolExecutor
+            _api_params = {
+                "sigungu_cd": address_info["sigungu_code"],
+                "bjdong_cd": address_info["bjdong_code"],
+                "bun": address_info["bun"],
+                "ji": address_info["ji"],
+                "mgm_bldrgst_pk": building["mgmBldrgstPk"],
+            }
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                floor_future = executor.submit(
+                    system.api.get_floor_info,
+                    **_api_params,
+                    num_of_rows=50,
+                )
+                area_future = executor.submit(
+                    system.api.get_unit_area_info,
+                    **_api_params,
+                    num_of_rows=100,
+                )
+                unit_future = None
+                if ho:
+                    unit_future = executor.submit(
+                        system.api.get_unit_info,
+                        **_api_params,
+                        num_of_rows=100,
+                    )
+                floor_result = floor_future.result()
+                area_result = area_future.result()
+                if unit_future:
+                    unit_result = unit_future.result()
 
         # 같은 층의 모든 전유부분 확인 (통임대/분할임대 판단)
         selected_units_info = None  # 선택된 전유부분 정보
@@ -1168,6 +1168,31 @@ def main():
                     '알 수 없는 오류')}")
         return
 
+    # 현재 모드 확인 (기본값: A)
+    current_mode = st.session_state.get("mode", "A")
+
+    # 비활성 모드 버튼 회색 스타일 (CSS 클래스 정의)
+    st.markdown("""
+    <style>
+    /* 모드 전환 버튼 transition */
+    button.mode-btn-inactive,
+    button.mode-btn-active {
+        transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;
+    }
+    /* 비활성 모드 버튼 → 회색 */
+    button.mode-btn-inactive {
+        background-color: #CCCCCC !important;
+        border-color: #CCCCCC !important;
+        color: #888888 !important;
+    }
+    button.mode-btn-inactive:hover {
+        background-color: #BBBBBB !important;
+        border-color: #BBBBBB !important;
+        color: #666666 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # 모드 선택 UI
     st.markdown(
         '<h3 style="margin-top: 0.2rem; margin-bottom: 0.3rem; font-size: 0.95rem;">🔧 작업 모드 선택</h3>',
@@ -1176,32 +1201,83 @@ def main():
 
     with mode_col1:
         if st.button(
-            "📋 모드 A: 블로그 광고 생성",
+            "📋 모드A 블로그",
             use_container_width=True,
-            type="primary" if st.session_state.get(
-                "mode",
-                "A") == "A" else "secondary",
+            key="mode_btn_a",
+            type="primary" if current_mode == "A" else "secondary",
         ):
             st.session_state.mode = "A"
             st.rerun()
 
     with mode_col2:
         if st.button(
-            "🔍 모드 B: 필수표시사항 검증",
+            "🔍 모드B 네이버부동산",
             use_container_width=True,
-            type="primary" if st.session_state.get(
-                "mode",
-                "A") == "B" else "secondary",
+            key="mode_btn_b",
+            type="primary" if current_mode == "B" else "secondary",
         ):
             st.session_state.mode = "B"
             st.rerun()
 
+    # JS: MutationObserver로 React 재렌더링 후에도 비활성 버튼 회색 유지
+    # datetime 타임스탬프로 매 rerun마다 HTML이 달라지게 하여 iframe 캐시 방지
+    _ts = datetime.now().isoformat()
+    components.html(f"""
+    <script>
+    // rerun: {_ts}
+    (function() {{
+        var doc = window.parent.document;
+        if (!doc) return;
+
+        function styleModeButtons() {{
+            var buttons = doc.querySelectorAll('button');
+            for (var i = 0; i < buttons.length; i++) {{
+                var txt = buttons[i].textContent || '';
+                if (txt.indexOf('\ubaa8\ub4dcA') !== -1 || txt.indexOf('\ubaa8\ub4dcB') !== -1) {{
+                    var kind = buttons[i].getAttribute('kind');
+                    if (kind === 'secondary') {{
+                        buttons[i].classList.add('mode-btn-inactive');
+                        buttons[i].classList.remove('mode-btn-active');
+                    }} else {{
+                        buttons[i].classList.add('mode-btn-active');
+                        buttons[i].classList.remove('mode-btn-inactive');
+                    }}
+                }}
+            }}
+        }}
+
+        // 이전 observer 정리
+        if (doc._modeBtnObserver) {{
+            doc._modeBtnObserver.disconnect();
+        }}
+        if (doc._modeBtnTimer) {{
+            clearTimeout(doc._modeBtnTimer);
+        }}
+
+        // 즉시 실행
+        styleModeButtons();
+
+        // MutationObserver: React가 DOM을 변경할 때마다 자동 재적용
+        var observer = new MutationObserver(function() {{
+            styleModeButtons();
+        }});
+        observer.observe(doc.body, {{ childList: true, subtree: true }});
+        doc._modeBtnObserver = observer;
+
+        // 5초 후 자동 해제 (성능 보호, 다음 rerun 시 새로 생성됨)
+        doc._modeBtnTimer = setTimeout(function() {{
+            observer.disconnect();
+            doc._modeBtnObserver = null;
+        }}, 5000);
+    }})();
+    </script>
+    """, height=0)
+
     st.markdown("---")
 
     # 현재 선택된 모드 표시
-    current_mode = st.session_state.get("mode", "A")
     mode_name = (
-        "📋 모드 A: 블로그 광고 생성" if current_mode == "A" else "🔍 모드 B: 필수표시사항 검증"
+        "📋 모드A 블로그" if current_mode == "A" else "🔍 모드B 네이버부동산"
     )
     st.markdown(f"### {mode_name}")
 
@@ -1214,9 +1290,8 @@ def main():
 
         with input_col1:
             st.markdown(
-                '<h4 style="color: #1976d2; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">📋 네이버 부동산뱅크</h4>',
+                '<h4 style="color: #1976d2; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">📋 네이버 부동산뱅크 <span style="font-weight: normal; font-size: 0.7rem; color: #999;">(Ctrl+A → Ctrl+C 후 붙여넣기)</span></h4>',
                 unsafe_allow_html=True)
-            st.caption("매물 등록 페이지 또는 상세보기 페이지에서 Ctrl+A → Ctrl+C")
 
             # 초기화를 위한 key 변경
             bank_input_key = f"bank_input_{
@@ -1228,22 +1303,13 @@ def main():
                 "부동산뱅크 페이지:",
                 height=320,
                 key=bank_input_key,
-                placeholder="필수건물종류\t일반상가\n필수건축물용도\t제1종 근린생활시설\n필수소재지\t대구\t중구\t대봉동\n...",
+                placeholder="",
                 label_visibility="collapsed")
 
         with input_col2:
             st.markdown(
                 '<h4 style="color: #2e7d32; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">💬 카카오톡 매물정보 (중요!)</h4>',
                 unsafe_allow_html=True)
-
-            # 카톡 정보 상태 표시 (파싱 완료 시만 표시)
-            kakao_parsed_status = st.session_state.get('parsed_kakao_data_b')
-            if kakao_parsed_status:
-                st.success(
-                    f"✅ 파싱 완료: {
-                        kakao_parsed_status.get(
-                            'address',
-                            '주소 없음')}")
 
             # 카톡 입력란 key
             kakao_bank_input_key = f"kakao_bank_input_{
@@ -1255,11 +1321,20 @@ def main():
                 "카톡 매물 정보:",
                 height=280,
                 key=kakao_bank_input_key,
-                placeholder="중구 대안동 70-1 4층\n1. 500/35 부가세없음\n2. 관리비 실비정산\n3. 무권리\n4. 제1종근생 사무소 / 24.36m2 / 약 7평\n5. 주차장있음 / 내부화장실1개\n6. 동향\n7. 등기o 위반x\n8. 임대인 010-1234-5678",
+                placeholder="",
                 label_visibility="collapsed"
             )
 
         st.info("💡 **사용방법**: 네이버 뱅크 + 카카오톡 정보 입력 후 '파싱하기' 버튼 클릭")
+
+        # 카톡 파싱 완료 상태 표시 (textarea 아래로 이동하여 레이아웃 고정)
+        kakao_parsed_status = st.session_state.get('parsed_kakao_data_b')
+        if kakao_parsed_status:
+            st.success(
+                f"✅ 카톡 파싱 완료: {
+                    kakao_parsed_status.get(
+                        'address',
+                        '주소 없음')}")
 
         col1, col2, col3 = st.columns([0.3, 0.3, 0.4])
         with col1:
@@ -1268,13 +1343,19 @@ def main():
                 type="primary",
                 use_container_width=True)
         with col2:
-            if st.button("🔄 초기화", use_container_width=True):
-                # 세션 상태 초기화
+            if st.button("🔄 초기화", use_container_width=True, key="reset_mode_b"):
+                # ✅ 현재 모드를 명시적으로 보존 (모드B 유지)
+                st.session_state.mode = "B"
+
+                # 세션 상태 초기화 (모드B 입력/출력값만)
                 keys_to_delete = [
                     'parsed_bank_result',
                     'parsed_bank_data',
                     'validation_result',
-                    'parsed_kakao_data_b']
+                    'parsed_kakao_data_b',
+                    'usage_judgment_b',
+                    'api_debug_info',
+                    'address_parse_debug']
                 for key in keys_to_delete:
                     if key in st.session_state:
                         del st.session_state[key]
@@ -1337,6 +1418,7 @@ def main():
                     st.toast("✅ 복사 완료!", icon="✅")
 
         if parse_btn and bank_text:
+          with st.spinner("⏳ 파싱 및 건축물대장 조회 중..."):
             from kakao_parser import KakaoPropertyParser
             from bank_info_validator import BankInfoValidator
 
@@ -1501,15 +1583,29 @@ def main():
                                 api_debug_info.append(
                                     f"📋 표제부 전체 키: {list(building_data.keys())}")
 
-                                # 층별개요 API 호출 (모드 A와 동일하게 모든 파라미터 전달)
-                                api_debug_info.append("📡 층별개요 API 호출 중...")
-                                floor_result = system.api.get_floor_info(
-                                    sigungu_cd=sigungu_cd,
-                                    bjdong_cd=bjdong_cd,
-                                    bun=bun,
-                                    ji=ji,
-                                    mgm_bldrgst_pk=mgm_bldrgst_pk
-                                )
+                                # ✅ 층별개요 + 전유공용면적 API 병렬 호출 (속도 최적화)
+                                api_debug_info.append("📡 층별개요 + 전유공용면적 API 동시 호출 중...")
+                                from concurrent.futures import ThreadPoolExecutor
+                                with ThreadPoolExecutor(max_workers=2) as executor:
+                                    floor_future = executor.submit(
+                                        system.api.get_floor_info,
+                                        sigungu_cd=sigungu_cd,
+                                        bjdong_cd=bjdong_cd,
+                                        bun=bun,
+                                        ji=ji,
+                                        mgm_bldrgst_pk=mgm_bldrgst_pk
+                                    )
+                                    area_future = executor.submit(
+                                        system.api.get_unit_area_info,
+                                        sigungu_cd=sigungu_cd,
+                                        bjdong_cd=bjdong_cd,
+                                        bun=bun,
+                                        ji=ji,
+                                        mgm_bldrgst_pk=mgm_bldrgst_pk
+                                    )
+                                    floor_result = floor_future.result()
+                                    area_result = area_future.result()
+
                                 api_debug_info.append(
                                     f"📊 층별개요: 층 수={len(floor_result.get('data', []))}")
 
@@ -1526,15 +1622,6 @@ def main():
                                         api_debug_info.append(
                                             f"   {floor_nm}: {floor_usage} ({floor_etc})" if floor_etc else f"   {floor_nm}: {floor_usage}")
 
-                                # 전유공용면적 API 호출 (모드 A와 동일하게 모든 파라미터 전달)
-                                api_debug_info.append("📡 전유공용면적 API 호출 중...")
-                                area_result = system.api.get_unit_area_info(
-                                    sigungu_cd=sigungu_cd,
-                                    bjdong_cd=bjdong_cd,
-                                    bun=bun,
-                                    ji=ji,
-                                    mgm_bldrgst_pk=mgm_bldrgst_pk
-                                )
                                 api_debug_info.append(
                                     f"📊 전유공용면적: 면적 수={len(area_result.get('data', []))}")
 
@@ -2059,16 +2146,6 @@ def main():
             '<h4 style="color: #1976d2; margin-bottom: 5px; margin-top: 0; padding-top: 0; font-size: 0.85rem;">📝 입력: 카카오톡 매물정보</h4>',
             unsafe_allow_html=True)
 
-        placeholder_text = """중구 대안동 70-1 4층
-1. 500/35 부가세없음
-2. 관리비 실비정산
-3. 무권리
-4. 제1종근생 사무소 / 24.36m2 / 약 7평
-5. 주차장있음 / 내부화장실1개
-6. 동향
-7. 등기o 위반x
-8. 임대인 010-1234-5678"""
-
         # 초기화를 위한 key 변경
         input_key = f"kakao_input_{
             st.session_state.get(
@@ -2078,7 +2155,7 @@ def main():
             "카카오톡 매물 정보:",
             height=350,
             key=input_key,
-            placeholder=placeholder_text,
+            placeholder="",
             label_visibility="collapsed",
         )
 
@@ -2088,7 +2165,10 @@ def main():
                 "🔍 생성", type="primary", use_container_width=True
             )
         with btn_col2:
-            if st.button("🔄 초기화", use_container_width=True):
+            if st.button("🔄 초기화", use_container_width=True, key="reset_mode_a"):
+                # ✅ 현재 모드를 명시적으로 보존 (모드A 유지)
+                st.session_state.mode = "A"
+
                 # 사용자 입력 및 결과만 초기화 (시스템 상태는 유지)
                 keys_to_delete = [
                     "result_text",

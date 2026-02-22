@@ -2,6 +2,6 @@
 호수: None
 is_collective_building: False
 unit_area: None
-area_comparison.registry_area: 54.51
-[Case B-1] area_comparison 사용: 54.51㎡ (호수 없음)
-최종 registry_area: 54.51㎡
+area_comparison.registry_area: None
+[Case B-2] _get_floor_area_from_api 사용: None㎡
+최종 registry_area: None㎡

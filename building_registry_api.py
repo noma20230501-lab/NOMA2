@@ -80,14 +80,14 @@ class BuildingRegistryAPI:
             except BaseException:
                 pass
 
-        # 재시도 로직 (최대 3회)
-        max_retries = 3
-        retry_delay = 2  # 초
+        # 재시도 로직 (최대 2회, 빠른 재시도)
+        max_retries = 2
+        retry_delay = 1  # 초
 
         for attempt in range(max_retries):
             try:
-                # 타임아웃 설정 (30초)
-                response = requests.get(url, params=params_clean, timeout=30)
+                # 타임아웃 설정 (15초 - 정상 응답은 1~5초 내)
+                response = requests.get(url, params=params_clean, timeout=15)
                 response.raise_for_status()
 
                 # XML 파싱
@@ -148,7 +148,7 @@ class BuildingRegistryAPI:
                     continue
                 return {
                     'success': False,
-                    'error': f'요청 시간 초과 (30초): {str(e)}',
+                    'error': f'요청 시간 초과 (15초): {str(e)}',
                     'error_type': 'timeout',
                     'data': None
                 }
@@ -188,7 +188,7 @@ class BuildingRegistryAPI:
         # 모든 재시도 실패
         return {
             'success': False,
-            'error': f'요청 실패 (재시도 {max_retries}회 모두 실패)',
+            'error': f'요청 실패 (재시도 {max_retries}회 모두 실패, 네트워크 상태를 확인해주세요)',
             'error_type': 'max_retries',
             'data': None
         }
