@@ -574,129 +574,161 @@ def generate_blog_ad_web(kakao_text):
                 "sigungu_code") or not address_info.get("bjdong_code"):
             return None, f"주소를 파싱할 수 없습니다: {address}"
 
-        # 건축물대장 조회
-        title_result = system.api.get_title_info(
-            sigungu_cd=address_info["sigungu_code"],
-            bjdong_cd=address_info["bjdong_code"],
-            bun=address_info["bun"],
-            ji=address_info["ji"],
-            num_of_rows=10,
-        )
-
-        if not title_result.get("success") or not title_result.get("data"):
-            error_msg = title_result.get("error", "") or title_result.get(
-                "resultMsg", "알 수 없는 오류"
-            )
-            # 디버그 정보 추가
-            debug_msg = f"\n\n[디버그 정보]\n"
-            debug_msg += f"주소: {address}\n"
-            debug_msg += f"시군구코드: {address_info.get('sigungu_code')}\n"
-            debug_msg += f"법정동코드: {address_info.get('bjdong_code')}\n"
-            debug_msg += f"번: {address_info.get('bun')}\n"
-            debug_msg += f"지: {address_info.get('ji')}\n"
-            debug_msg += f"동: {dong}\n"
-            debug_msg += f"층: {floor}\n"
-            debug_msg += f"호: {ho}\n"
-            return (
-                None,
-                f"건축물대장 정보를 조회할 수 없습니다.\n오류: {error_msg}{debug_msg}",
-            )
-
-        # 건축물 선택
-        buildings = title_result["data"]
-
-        # 동 정보로 건축물 필터링 (아파트 상가 등)
-        # 디버그: 동 정보 출력
-        print(f"🔍 [디버그] 파싱된 동 정보: '{dong}'")
-        print(f"🔍 [디버그] 건축물 개수: {len(buildings)}")
-
-        if dong and len(buildings) > 1:
-            print(
-                f"🔍 [디버그] 동 필터링 시작: dong='{dong}', buildings={len(buildings)}개"
-            )
-            filtered_buildings = []
-            for bld in buildings:
-                # API 응답에서 동 정보 추출 (다양한 필드명 시도)
-                bld_dong = None
-                dong_fields = [
-                    "dongNm",
-                    "dongNo",
-                    "dong",
-                    "dongNmNm",
-                    "bldDongNm"]
-                for field in dong_fields:
-                    if field in bld and bld[field]:
-                        bld_dong = str(bld[field]).strip()
-                        print(f"   🔍 [디버그] 건축물 동 발견: {field}='{bld_dong}'")
-                        break
-
-                if not bld_dong:
-                    print(
-                        f"   ⚠️ [디버그] 동 정보 없음: 모든 필드 확인 - {list(bld.keys())}"
-                    )
-
-                # 동 번호 매칭 (입력: "111" or "111동", API: "111동" or "111")
-                if bld_dong:
-                    # 동 번호 정규화 (숫자만 추출)
-                    import re
-
-                    input_dong_num = re.sub(r"[^\d]", "", str(dong))
-                    api_dong_num = re.sub(r"[^\d]", "", bld_dong)
-
-                    print(
-                        f"   🔍 [디버그] 동 매칭: 입력='{input_dong_num}' vs API='{api_dong_num}'")
-
-                    if (
-                        input_dong_num
-                        and api_dong_num
-                        and input_dong_num == api_dong_num
-                    ):
-                        print(f"      ✅ [디버그] 동 일치! 필터링 목록에 추가")
-                        filtered_buildings.append(bld)
-                    else:
-                        print(f"      ❌ [디버그] 동 불일치, 필터링 제외")
-
-            # 필터링된 건축물이 있으면 사용
-            if filtered_buildings:
-                print(
-                    f"✅ [디버그] 필터링 완료: {len(filtered_buildings)}개 건축물 선택됨"
-                )
-                buildings = filtered_buildings
+        # 🔥 선택된 건축물이 있는지 먼저 확인 (재생성 시 API 재호출 방지)
+        selected_building_idx = st.session_state.get("selected_building_idx")
+        buildings = None
+        
+        if selected_building_idx is not None:
+            # 선택된 건축물이 있으면 세션에 저장된 buildings 사용 (주소 비교 없이)
+            saved_buildings = st.session_state.get("buildings")
+            
+            if saved_buildings:
+                buildings = saved_buildings
+                print(f"\n🔄 [디버그] 재생성 모드: 세션에 저장된 buildings 사용")
+                print(f"   - 저장된 buildings 개수: {len(saved_buildings)}")
+                print(f"   - 선택 인덱스: {selected_building_idx}")
+                print(f"   - API 호출 건너뜀 ✅")
             else:
-                print(f"⚠️ [디버그] 필터링 결과 없음, 원래 건축물 목록 사용")
-        else:
-            if not dong:
-                print(f"⚠️ [디버그] 동 정보 없음, 필터링 건너뜀")
-            elif len(buildings) <= 1:
-                print(f"ℹ️ [디버그] 건축물 1개 이하, 필터링 불필요")
+                # 세션에 buildings가 없으면 API 재호출 (단, selected_building_idx 유지)
+                print(f"\n⚠️ [경고] 세션에 buildings 없음 → API 재호출 (인덱스 유지: {selected_building_idx})")
+        
+        # 세션에 저장된 buildings가 없으면 API 호출
+        if buildings is None:
+            print(f"\n🌐 [디버그] API 호출: 건축물대장 조회")
+            # 건축물대장 조회
+            title_result = system.api.get_title_info(
+                sigungu_cd=address_info["sigungu_code"],
+                bjdong_cd=address_info["bjdong_code"],
+                bun=address_info["bun"],
+                ji=address_info["ji"],
+                num_of_rows=10,
+            )
 
-        # API 응답을 세션에 저장 (디버깅용)
-        st.session_state.api_buildings_raw = title_result["data"]  # 원본 저장
-        st.session_state.api_buildings_filtered = buildings  # 필터링된 결과 저장
-        st.session_state.api_buildings_count = len(buildings)
-        st.session_state.api_full_response = {
-            "success": title_result.get("success"),
-            "resultCode": title_result.get("resultCode"),
-            "resultMsg": title_result.get("resultMsg"),
-            "totalCount": (
-                title_result.get("pagination", {}).get("totalCount", 0)
-                if title_result.get("pagination")
-                else len(buildings)
-            ),
-            "numOfRows": (
-                title_result.get("pagination", {}).get("numOfRows", 10)
-                if title_result.get("pagination")
-                else 10
-            ),
-            "data_count": len(buildings),
-            "buildings": buildings,
-        }
+            if not title_result.get("success") or not title_result.get("data"):
+                error_msg = title_result.get("error", "") or title_result.get(
+                    "resultMsg", "알 수 없는 오류"
+                )
+                # 디버그 정보 추가
+                debug_msg = f"\n\n[디버그 정보]\n"
+                debug_msg += f"주소: {address}\n"
+                debug_msg += f"시군구코드: {address_info.get('sigungu_code')}\n"
+                debug_msg += f"법정동코드: {address_info.get('bjdong_code')}\n"
+                debug_msg += f"번: {address_info.get('bun')}\n"
+                debug_msg += f"지: {address_info.get('ji')}\n"
+                debug_msg += f"동: {dong}\n"
+                debug_msg += f"층: {floor}\n"
+                debug_msg += f"호: {ho}\n"
+                return (
+                    None,
+                    f"건축물대장 정보를 조회할 수 없습니다.\n오류: {error_msg}{debug_msg}",
+                )
+
+            # 건축물 선택
+            buildings = title_result["data"]
+
+            # 동 정보로 건축물 필터링 (아파트 상가 등)
+            # 디버그: 동 정보 출력
+            print(f"🔍 [디버그] 파싱된 동 정보: '{dong}'")
+            print(f"🔍 [디버그] 건축물 개수: {len(buildings)}")
+
+            if dong and len(buildings) > 1:
+                print(
+                    f"🔍 [디버그] 동 필터링 시작: dong='{dong}', buildings={len(buildings)}개"
+                )
+                filtered_buildings = []
+                for bld in buildings:
+                    # API 응답에서 동 정보 추출 (다양한 필드명 시도)
+                    bld_dong = None
+                    dong_fields = [
+                        "dongNm",
+                        "dongNo",
+                        "dong",
+                        "dongNmNm",
+                        "bldDongNm"]
+                    for field in dong_fields:
+                        if field in bld and bld[field]:
+                            bld_dong = str(bld[field]).strip()
+                            print(f"   🔍 [디버그] 건축물 동 발견: {field}='{bld_dong}'")
+                            break
+
+                    if not bld_dong:
+                        print(
+                            f"   ⚠️ [디버그] 동 정보 없음: 모든 필드 확인 - {list(bld.keys())}"
+                        )
+
+                    # 동 번호 매칭 (입력: "111" or "111동", API: "111동" or "111")
+                    if bld_dong:
+                        # 동 번호 정규화 (숫자만 추출)
+                        import re
+
+                        input_dong_num = re.sub(r"[^\d]", "", str(dong))
+                        api_dong_num = re.sub(r"[^\d]", "", bld_dong)
+
+                        print(
+                            f"   🔍 [디버그] 동 매칭: 입력='{input_dong_num}' vs API='{api_dong_num}'")
+
+                        if (
+                            input_dong_num
+                            and api_dong_num
+                            and input_dong_num == api_dong_num
+                        ):
+                            print(f"      ✅ [디버그] 동 일치! 필터링 목록에 추가")
+                            filtered_buildings.append(bld)
+                        else:
+                            print(f"      ❌ [디버그] 동 불일치, 필터링 제외")
+
+                # 필터링된 건축물이 있으면 사용
+                if filtered_buildings:
+                    print(
+                        f"✅ [디버그] 필터링 완료: {len(filtered_buildings)}개 건축물 선택됨"
+                    )
+                    buildings = filtered_buildings
+                else:
+                    print(f"⚠️ [디버그] 필터링 결과 없음, 원래 건축물 목록 사용")
+            else:
+                if not dong:
+                    print(f"⚠️ [디버그] 동 정보 없음, 필터링 건너뜀")
+                elif len(buildings) <= 1:
+                    print(f"ℹ️ [디버그] 건축물 1개 이하, 필터링 불필요")
+
+            # API 응답을 세션에 저장 (디버깅용) - API 호출 시에만
+            st.session_state.api_buildings_raw = title_result["data"]  # 원본 저장
+            st.session_state.api_buildings_filtered = buildings  # 필터링된 결과 저장
+            st.session_state.api_buildings_count = len(buildings)
+            st.session_state.api_full_response = {
+                "success": title_result.get("success"),
+                "resultCode": title_result.get("resultCode"),
+                "resultMsg": title_result.get("resultMsg"),
+                "totalCount": (
+                    title_result.get("pagination", {}).get("totalCount", 0)
+                    if title_result.get("pagination")
+                    else len(buildings)
+                ),
+                "numOfRows": (
+                    title_result.get("pagination", {}).get("numOfRows", 10)
+                    if title_result.get("pagination")
+                    else 10
+                ),
+                "data_count": len(buildings),
+                "buildings": buildings,
+            }
+        
+        # 건축물 목록과 주소 정보를 세션에 저장 (선택 후 재사용을 위해)
+        st.session_state.buildings = buildings
+        st.session_state.address_info = address_info
 
         # 건축물이 여러 개인 경우 선택하도록 함
         if len(buildings) > 1:
-            # 선택된 건축물이 있는지 확인
-            selected_building_idx = st.session_state.get(
-                "selected_building_idx")
+            # 선택된 건축물이 있는지 확인 (위에서 이미 읽은 값 재사용)
+            # selected_building_idx는 이미 577번 라인에서 읽었음
+            
+            print(f"\n🔍 [디버그] 건축물 선택 체크:")
+            print(f"   - buildings 개수: {len(buildings)}")
+            print(f"   - selected_building_idx: {selected_building_idx}")
+            if selected_building_idx is not None:
+                print(f"   - 선택 상태: 이미 선택됨 (idx={selected_building_idx})")
+            else:
+                print(f"   - 선택 상태: 아직 선택 안됨")
 
             if selected_building_idx is None:
                 # 건축물 목록을 저장하고 선택 UI를 표시하도록 반환
@@ -709,10 +741,25 @@ def generate_blog_ad_web(kakao_text):
                     "debug_info": f"건축물 {len(buildings)}개 발견 - 선택 필요",
                 }, None
             else:
+                # 인덱스 범위 확인
+                if selected_building_idx >= len(buildings):
+                    print(f"❌ [오류] selected_building_idx={selected_building_idx}가 buildings 길이({len(buildings)})를 초과")
+                    return {
+                        "error": f"선택한 건축물 인덱스({selected_building_idx})가 범위를 벗어났습니다.",
+                        "debug_info": f"buildings 개수: {len(buildings)}, 선택 인덱스: {selected_building_idx}",
+                    }, None
+                
                 building = buildings[selected_building_idx]
+                print(f"✅ [디버그] 건축물 선택됨: idx={selected_building_idx}")
+                print(f"   - 건축물명: {building.get('bldNm', 'N/A')}")
+                print(f"   - 대지위치: {building.get('platPlc', 'N/A')}")
+                print(f"   - mgmBldrgstPk: {building.get('mgmBldrgstPk', 'N/A')}")
         else:
             # 건축물이 1개만 있으면 자동 선택
             building = buildings[0]
+            print(f"✅ [디버그] 건축물 자동 선택 (1개만 존재)")
+            print(f"   - 건축물명: {building.get('bldNm', 'N/A')}")
+            print(f"   - mgmBldrgstPk: {building.get('mgmBldrgstPk', 'N/A')}")
 
         # ✅ 층별 현황 + 전유공용면적 + 전유부 API 병렬 호출 (속도 최적화)
         floor_result = None
@@ -2288,37 +2335,46 @@ def main():
                     with st.expander("🏷️ 용도 판정"):
                         st.json(st.session_state.usage_judgment)
 
-        if generate_btn:
+        # 🔥 auto_generate: 건축물/전유부분/용도 선택 후 자동 재생성 트리거
+        auto_generate = st.session_state.pop("auto_generate", False)
+        
+        if generate_btn or auto_generate:
+            # auto_generate일 때는 세션에 저장된 텍스트 사용
+            if auto_generate:
+                kakao_text = st.session_state.get("current_kakao_text", "")
+                print(f"🔄 [auto_generate] 자동 재생성 시작")
+            
             if not kakao_text or kakao_text.strip() == "":
                 st.warning("매물 정보를 입력하세요")
             else:
                 # 입력 텍스트를 session_state에 저장 (건축물 선택 시 사용)
                 st.session_state.current_kakao_text = kakao_text
 
-                # 생성 버튼을 누르면 이전 선택 상태 및 결과 데이터 초기화
-                keys_to_reset = [
-                    "selected_building_idx",
-                    "need_building_selection",
-                    "selected_area",  # 면적 선택 상태도 초기화
-                    "selected_unit_idx",  # 전유부분 선택 상태 초기화
-                    "need_unit_selection",  # 전유부분 선택 필요 플래그 초기화
-                    "units",  # 전유부분 목록 초기화
-                    "unit_comparison",  # 전유부분 비교 정보 초기화
-                    "unit_count",  # 전유부분 개수 초기화
-                    "need_usage_selection",  # 용도 선택 필요 플래그 초기화
-                    "usage_options",  # 용도 옵션 초기화
-                    "selected_usage",  # 선택된 용도 초기화
-                    "result_text",  # 이전 결과 텍스트 초기화
-                    "usage_judgment",  # 이전 용도 판정 초기화
-                    "parsed_info",  # 이전 파싱 정보 초기화
-                    "area_options",  # 이전 면적 옵션 초기화
-                    "area_comparison",  # 이전 면적 비교 정보 초기화
-                    "floor_result",  # 이전 층별개요 초기화
-                    "area_result",  # 이전 전유공용면적 초기화
-                ]
-                for key in keys_to_reset:
-                    if key in st.session_state:
-                        del st.session_state[key]
+                # 생성 버튼을 직접 눌렀을 때만 이전 선택 상태 초기화
+                if generate_btn:
+                    keys_to_reset = [
+                        "selected_building_idx",
+                        "need_building_selection",
+                        "selected_area",  # 면적 선택 상태도 초기화
+                        "selected_unit_idx",  # 전유부분 선택 상태 초기화
+                        "need_unit_selection",  # 전유부분 선택 필요 플래그 초기화
+                        "units",  # 전유부분 목록 초기화
+                        "unit_comparison",  # 전유부분 비교 정보 초기화
+                        "unit_count",  # 전유부분 개수 초기화
+                        "need_usage_selection",  # 용도 선택 필요 플래그 초기화
+                        "usage_options",  # 용도 옵션 초기화
+                        "selected_usage",  # 선택된 용도 초기화
+                        "result_text",  # 이전 결과 텍스트 초기화
+                        "usage_judgment",  # 이전 용도 판정 초기화
+                        "parsed_info",  # 이전 파싱 정보 초기화
+                        "area_options",  # 이전 면적 옵션 초기화
+                        "area_comparison",  # 이전 면적 비교 정보 초기화
+                        "floor_result",  # 이전 층별개요 초기화
+                        "area_result",  # 이전 전유공용면적 초기화
+                    ]
+                    for key in keys_to_reset:
+                        if key in st.session_state:
+                            del st.session_state[key]
 
                 with st.spinner("조회 중..."):
                     result, error = generate_blog_ad_web(kakao_text)
@@ -2497,37 +2553,8 @@ def main():
                 ):
                     st.session_state.selected_building_idx = idx
                     st.session_state.need_building_selection = False
-                    # 다시 생성
-                    with st.spinner("선택한 건축물 정보로 생성 중..."):
-                        kakao_text = st.session_state.get(
-                            "current_kakao_text", "")
-                        result, error = generate_blog_ad_web(kakao_text)
-                        if error:
-                            st.error(f"❌ {error}")
-                            st.session_state.result_text = ""
-                            st.session_state.area_options = {}
-                        else:
-                            if result and result.get("text"):
-                                st.session_state.result_text = result["text"]
-                                st.session_state.area_options = result.get(
-                                    "area_options", {}
-                                )
-                                st.session_state.usage_judgment = result.get(
-                                    "usage_judgment", {}
-                                )
-                                st.session_state.parsed_info = result.get(
-                                    "parsed", {})
-                                st.session_state.floor_result = result.get(
-                                    "floor_result"
-                                )
-                                st.session_state.area_result = result.get(
-                                    "area_result")
-                                st.session_state.area_comparison = result.get(
-                                    "area_comparison"
-                                )  # 면적 비교 정보 저장
-                                st.session_state.success_message = (
-                                    "✅ 블로그 양식이 생성되었습니다!"
-                                )
+                    st.session_state.auto_generate = True  # 🔥 자동 재생성 트리거
+                    print(f"✅ [건축물 선택] idx={idx} → auto_generate 설정, rerun")
                     st.rerun()
 
                 st.markdown("")  # 간격
@@ -2592,37 +2619,8 @@ def main():
                 ):
                     st.session_state.selected_unit_idx = "total"
                     st.session_state.need_unit_selection = False
-                    # 다시 생성
-                    with st.spinner("선택한 전유부분 정보로 생성 중..."):
-                        kakao_text = st.session_state.get(
-                            "current_kakao_text", "")
-                        result, error = generate_blog_ad_web(kakao_text)
-                        if error:
-                            st.error(f"❌ {error}")
-                            st.session_state.result_text = ""
-                            st.session_state.area_options = {}
-                        else:
-                            if result and result.get("text"):
-                                st.session_state.result_text = result["text"]
-                                st.session_state.area_options = result.get(
-                                    "area_options", {}
-                                )
-                                st.session_state.usage_judgment = result.get(
-                                    "usage_judgment", {}
-                                )
-                                st.session_state.parsed_info = result.get(
-                                    "parsed", {})
-                                st.session_state.floor_result = result.get(
-                                    "floor_result"
-                                )
-                                st.session_state.area_result = result.get(
-                                    "area_result")
-                                st.session_state.area_comparison = result.get(
-                                    "area_comparison"
-                                )  # 면적 비교 정보 저장
-                                st.session_state.success_message = (
-                                    "✅ 블로그 양식이 생성되었습니다!"
-                                )
+                    st.session_state.auto_generate = True  # 🔥 자동 재생성 트리거
+                    print(f"✅ [전유부분 선택] 통임대 → auto_generate 설정, rerun")
                     st.rerun()
 
                 st.markdown(
@@ -2662,35 +2660,8 @@ def main():
                     ):
                         st.session_state.selected_unit_idx = idx
                         st.session_state.need_unit_selection = False
-                        # 다시 생성
-                        with st.spinner("선택한 전유부분 정보로 생성 중..."):
-                            kakao_text = st.session_state.get(
-                                "current_kakao_text", "")
-                            result, error = generate_blog_ad_web(kakao_text)
-                            if error:
-                                st.error(f"❌ {error}")
-                                st.session_state.result_text = ""
-                                st.session_state.area_options = {}
-                            else:
-                                if result and result.get("text"):
-                                    st.session_state.result_text = result["text"]
-                                    st.session_state.area_options = result.get(
-                                        "area_options", {}
-                                    )
-                                    st.session_state.usage_judgment = result.get(
-                                        "usage_judgment", {})
-                                    st.session_state.parsed_info = result.get(
-                                        "parsed", {}
-                                    )
-                                    st.session_state.floor_result = result.get(
-                                        "floor_result"
-                                    )
-                                    st.session_state.area_result = result.get(
-                                        "area_result"
-                                    )
-                                    st.session_state.success_message = (
-                                        "✅ 블로그 양식이 생성되었습니다!"
-                                    )
+                        st.session_state.auto_generate = True  # 🔥 자동 재생성 트리거
+                        print(f"✅ [전유부분 선택] idx={idx} → auto_generate 설정, rerun")
                         st.rerun()
 
                     st.markdown("")  # 간격
@@ -2714,32 +2685,8 @@ def main():
                 ):
                     st.session_state.selected_usage = option
                     st.session_state.need_usage_selection = False
-
-                    # 다시 생성 (선택한 용도로)
-                    with st.spinner(f"선택한 용도({option})로 생성 중..."):
-                        kakao_text = st.session_state.get(
-                            "current_kakao_text", "")
-                        result, error = generate_blog_ad_web(kakao_text)
-                        if error:
-                            st.error(f"❌ {error}")
-                            st.session_state.result_text = ""
-                            st.session_state.area_options = {}
-                        else:
-                            if result and result.get("text"):
-                                st.session_state.result_text = result["text"]
-                                st.session_state.area_options = result.get(
-                                    "area_options", {})
-                                st.session_state.usage_judgment = result.get(
-                                    "usage_judgment", {})
-                                st.session_state.parsed_info = result.get(
-                                    "parsed", {})
-                                st.session_state.floor_result = result.get(
-                                    "floor_result")
-                                st.session_state.area_result = result.get(
-                                    "area_result")
-                                st.session_state.area_comparison = result.get(
-                                    "area_comparison")
-                                st.session_state.success_message = "✅ 블로그 양식이 생성되었습니다!"
+                    st.session_state.auto_generate = True  # 🔥 자동 재생성 트리거
+                    print(f"✅ [용도 선택] {option} → auto_generate 설정, rerun")
                     st.rerun()
 
             st.stop()  # 용도 선택 전까지는 아래 내용 표시 안 함
@@ -3240,41 +3187,82 @@ def main():
                     # 번지수 제거된 텍스트
                     copy_text_cleaned = remove_address_numbers(copy_text)
 
-                    # 🔥 JavaScript를 사용한 복사 (웹 환경에서도 작동)
-                    import html
-                    escaped_text = html.escape(copy_text_cleaned).replace('\n', '\\n').replace("'", "\\'")
+                    # 🔥 JavaScript를 사용한 클립보드 복사 (iframe 환경 대응)
+                    import html as html_module
+                    import json
+                    # JSON으로 안전하게 이스케이프 (줄바꿈, 따옴표 등 모두 처리)
+                    escaped_text_json = json.dumps(copy_text_cleaned)
                     
                     copy_js = f"""
                     <script>
                     function copyToClipboard() {{
-                        const text = '{escaped_text}';
+                        const text = {escaped_text_json};
                         
-                        // Clipboard API 사용 (최신 브라우저)
+                        // 방법 1: 부모 window의 Clipboard API 사용
+                        try {{
+                            if (window.parent && window.parent.navigator && window.parent.navigator.clipboard) {{
+                                window.parent.navigator.clipboard.writeText(text).then(function() {{
+                                    console.log('부모 창 Clipboard API 복사 성공!');
+                                }}).catch(function(err) {{
+                                    console.warn('부모 창 Clipboard API 실패, fallback 시도:', err);
+                                    fallbackCopy(text);
+                                }});
+                                return;
+                            }}
+                        }} catch(e) {{
+                            console.warn('부모 창 접근 실패:', e);
+                        }}
+                        
+                        // 방법 2: 현재 iframe의 Clipboard API 사용
                         if (navigator.clipboard && window.isSecureContext) {{
                             navigator.clipboard.writeText(text).then(function() {{
-                                console.log('복사 성공!');
+                                console.log('iframe Clipboard API 복사 성공!');
                             }}).catch(function(err) {{
-                                console.error('복사 실패:', err);
+                                console.warn('iframe Clipboard API 실패, fallback 시도:', err);
                                 fallbackCopy(text);
                             }});
                         }} else {{
                             fallbackCopy(text);
                         }}
+                    }}
                         
-                        function fallbackCopy(text) {{
-                            // 구형 브라우저 대체 방법
+                    function fallbackCopy(text) {{
+                        // 방법 3: 부모 document에 textarea 생성하여 복사
+                        try {{
+                            const parentDoc = window.parent.document;
+                            const textArea = parentDoc.createElement('textarea');
+                            textArea.value = text;
+                            textArea.style.position = 'fixed';
+                            textArea.style.left = '-999999px';
+                            textArea.style.top = '-999999px';
+                            textArea.style.opacity = '0';
+                            parentDoc.body.appendChild(textArea);
+                            textArea.focus();
+                            textArea.select();
+                            try {{
+                                const result = parentDoc.execCommand('copy');
+                                console.log('부모 document fallback 복사:', result ? '성공' : '실패');
+                            }} catch (err) {{
+                                console.error('부모 document fallback 복사 실패:', err);
+                            }}
+                            parentDoc.body.removeChild(textArea);
+                        }} catch(e) {{
+                            // 방법 4: 현재 iframe document에서 시도
+                            console.warn('부모 document 접근 실패, iframe 내부 시도:', e);
                             const textArea = document.createElement('textarea');
                             textArea.value = text;
                             textArea.style.position = 'fixed';
                             textArea.style.left = '-999999px';
+                            textArea.style.top = '-999999px';
+                            textArea.style.opacity = '0';
                             document.body.appendChild(textArea);
                             textArea.focus();
                             textArea.select();
                             try {{
                                 document.execCommand('copy');
-                                console.log('Fallback 복사 성공!');
-                            }} catch (err) {{
-                                console.error('Fallback 복사 실패:', err);
+                                console.log('iframe 내부 fallback 복사 성공');
+                            }} catch (err2) {{
+                                console.error('모든 복사 방법 실패:', err2);
                             }}
                             document.body.removeChild(textArea);
                         }}
@@ -3286,6 +3274,11 @@ def main():
                     """
                     
                     components.html(copy_js, height=0)
+                    
+                    # 🔥 추가 안전장치: st.code로 복사 가능한 텍스트 제공
+                    with st.expander("📋 복사가 안 되면 여기서 직접 복사하세요", expanded=False):
+                        st.code(copy_text_cleaned, language=None)
+                    
                     st.success("✅ 복사 완료! (번지수 제외)")
 
 

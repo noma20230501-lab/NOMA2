@@ -41,7 +41,11 @@ class PropertyAdSystem:
                 pass  # Mock 객체인 경우 무시
 
         # API 클라이언트 초기화
-        API_KEY = "770b632a7abe47d5adad542d8b29350aceb52a0d82009f9acbef29101daa8a81"
+        try:
+            from config import BUILDING_API_KEY
+            API_KEY = BUILDING_API_KEY
+        except ImportError:
+            API_KEY = "770b632a7abe47d5adad542d8b29350aceb52a0d82009f9acbef29101daa8a81"
         self.api = BuildingRegistryAPI(API_KEY)
 
         # 파서 초기화

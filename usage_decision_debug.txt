@@ -7,8 +7,8 @@ floor (검색할 층): 1
 [Case B] 일반건물 로직 실행
 층별개요에서 추출한 용도 목록:
   floor_actual_usage_list: []
-  floor_etc_usage_list: []
-  all_floor_usages: []
+  floor_etc_usage_list: ['소매점', '일반음식점']
+  all_floor_usages: ['소매점', '일반음식점']
 usage_judgment에서 가져온 judged_usage: 제1종 근린생활시설
 → final_usage = judged_usage: 제1종 근린생활시설, show_usage_warning: False
 
